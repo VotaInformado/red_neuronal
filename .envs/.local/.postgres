@@ -1,0 +1,5 @@
+POSTGRES_HOST=postgres.red_neuronal
+POSTGRES_PORT=5432
+POSTGRES_DB=vota-informado-red-neuronal
+POSTGRES_USER=postgresinfo
+POSTGRES_PASSWORD=password

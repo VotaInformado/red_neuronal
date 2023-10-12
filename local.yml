@@ -1,0 +1,47 @@
+version: '3'
+
+volumes:
+  local_postgres_data: {}
+  local_postgres_data_backups: {}
+
+services:
+  django.red_neuronal:
+    build:
+      secrets:
+        - ssh_private_key
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+    image: vi-red-neuronal
+    depends_on:
+      - postgres.red_neuronal
+    volumes:
+      - .:/app
+    env_file:
+      - ./.envs/.local/.django
+      - ./.envs/.local/.postgres
+    ports:
+      - "8002:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    command: /start
+
+  postgres.red_neuronal:
+    build:
+      context: .
+      dockerfile: ./compose/local/postgres/Dockerfile
+    image: red_neuronal-postgres-local
+    volumes:
+      - local_postgres_data:/var/lib/postgresql/data
+      - local_postgres_data_backups:/backups
+    env_file:
+      - ./.envs/.local/.postgres
+    ports:
+      - "5434:5432"
+
+networks:
+  default:
+      name: local_network
+
+secrets:
+  ssh_private_key:
+    file: ~/.ssh/id_ed25519

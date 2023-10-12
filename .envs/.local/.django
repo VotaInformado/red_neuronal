@@ -1,0 +1,4 @@
+DJANGO_SETTINGS_MODULE=setup.settings
+DJANGO_SECRET_KEY="bad_secret_key"
+DJANGO_DEBUG=True
+VALIDATE_X_REAL_IP=False
