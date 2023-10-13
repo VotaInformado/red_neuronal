@@ -1,9 +1,13 @@
 import os
 import joblib
 import pandas as pd
-from sklearn.preprocessing import OneHotEncoder
 from django.conf import settings
 
+# Encoders
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.feature_extraction import DictVectorizer
+
+# Project
 from red_neuronal.utils.exceptions.exceptions import EncoderDataNotFound, TransformingUnseenData
 
 
@@ -11,9 +15,6 @@ class Encoder:
     class Meta:
         abstract = True
 
-    ENCODING_FILE_NAME = None
-
-    # Assuming self.encoded_votes is your OneHotEncoder object
     def save_encoder(self):
         os.makedirs(os.path.dirname(self.ENCODING_FILE_DIR), exist_ok=True)
         joblib.dump(self.encoder, self.ENCODING_FILE_DIR)
@@ -46,15 +47,14 @@ class Encoder:
             # Creo que no tiene mucho sentido guardar el encoder en fits
             self.save_encoder()
 
-    def transform(self, data: pd.DataFrame):
-        # Assumes the encoder has already been loaded
+    def _assert_no_new_data(self, data: pd.DataFrame):
         data_values = set(list(data[data.columns[0]]))
         loaded_categories = set(self.get_categories())
         if not data_values.issubset(loaded_categories):
-            import pdb
-
-            pdb.set_trace()
             raise TransformingUnseenData()
+
+    def transform(self, data: pd.DataFrame):
+        self._assert_no_new_data(data)
         return self.encoder.transform(data)
 
     def get_feature_names(self):
@@ -76,3 +76,22 @@ class LegislatorsEncoder(Encoder):
         ENCODING_FILE_NAME = "legislators_encoder.pkl"
         self.ENCODING_FILE_DIR = f"{settings.ENCODING_SAVING_DIR}/{ENCODING_FILE_NAME}"
         super().__init__(is_training)
+
+
+class AuthorsEncoder(Encoder):
+    def __init__(self, is_training: bool):
+        ENCODING_FILE_NAME = "authors_encoder.pkl"
+        self.ENCODING_FILE_DIR = f"{settings.ENCODING_SAVING_DIR}/{ENCODING_FILE_NAME}"
+        super().__init__(is_training)
+
+    def _load_encoder_for_training(self):
+        """For training, we create the encoder from scratch"""
+        self.encoder = DictVectorizer(sparse=False, separator="_")
+
+    def _assert_no_new_data(self, data: list):
+        KEY_WORD = "partido"
+        values_list = [v[0] for d in data for k, v in d.items()]
+        data_values = set([f"{KEY_WORD}_{value}" for value in values_list])
+        loaded_features = set(self.get_feature_names())
+        if not data_values.issubset(loaded_features):
+            raise TransformingUnseenData()

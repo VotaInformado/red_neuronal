@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.conf import settings
 
 # Project
-from red_neuronal.components.encoder import Encoder
+from red_neuronal.components.encoder import VotesEncoder
 from red_neuronal.components.neural_network import NeuralNetwork
 from red_neuronal.tests.utils.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import TransformingUnseenData, UntrainedNeuralNetwork
@@ -42,7 +42,7 @@ class EncoderTestCase(TestCase):
         fit_data = [{"voto": vote} for vote in votes_data]
         fit_df = pd.DataFrame(fit_data)
         transform_df = pd.DataFrame(fit_df["voto"].to_frame())
-        encoder = Encoder(is_training=True)
+        encoder = VotesEncoder(is_training=True)
         encoder.fit(fit_df)
         transformed_votes = encoder.transform(transform_df)
         self.assertEqual(len(transformed_votes), len(fit_data))
@@ -52,10 +52,10 @@ class EncoderTestCase(TestCase):
         fit_data = [{"voto": vote} for vote in votes_data]
         fit_df = pd.DataFrame(fit_data)
         transform_df = pd.DataFrame(fit_df["voto"].to_frame())
-        encoder = Encoder(is_training=True)
+        encoder = VotesEncoder(is_training=True)
         encoder.fit(fit_df)
         expected_transformed_votes = encoder.transform(transform_df)
-        encoder = Encoder(is_training=False)
+        encoder = VotesEncoder(is_training=False)
         transformed_votes = encoder.transform(transform_df)
         self.assertEqual(transformed_votes.tolist(), expected_transformed_votes.tolist())
 
@@ -66,8 +66,8 @@ class EncoderTestCase(TestCase):
         transform_data = fit_data.copy()
         transform_data.append({"voto": "UNSEEN_DATA"})
         transform_df = pd.DataFrame(transform_data)
-        encoder = Encoder(is_training=True)
+        encoder = VotesEncoder(is_training=True)
         encoder.fit(fit_df)
-        encoder = Encoder(is_training=False)
+        encoder = VotesEncoder(is_training=False)
         with self.assertRaises(TransformingUnseenData) as context:
             transformed_votes = encoder.transform(transform_df)

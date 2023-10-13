@@ -20,10 +20,10 @@ from keras.callbacks import History
 import pandas as pd
 import matplotlib.pyplot as plt
 import collections
-from red_neuronal.components.encoder import LegislatorsEncoder, VotesEncoder
+from red_neuronal.components.encoder import AuthorsEncoder, LegislatorsEncoder, VotesEncoder
 
 # Project
-from red_neuronal.components.universal_embedding import UniversalEmbedding
+from red_neuronal.components.embedding import UniversalEmbedding
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 
 
@@ -75,17 +75,17 @@ class NeuralNetwork:
     def _load_encoders(self):
         self.votes_encoder = VotesEncoder(is_training=False)
         self.legislators_encoder = LegislatorsEncoder(is_training=False)
-        autores_dict = self.df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
-        self.encoded_authors = DictVectorizer(sparse=False, separator="_").fit(autores_dict)
-        # TODO: cambiar el último
+        self.authors_encoder = AuthorsEncoder(is_training=False)
 
     def _fit_encoders(self):
         self.votes_encoder = VotesEncoder(is_training=True)
         self.legislators_encoder = LegislatorsEncoder(is_training=True)
+        self.authors_encoder = AuthorsEncoder(is_training=True)
+
         self.votes_encoder.fit(self.df["voto"].to_frame())
         self.legislators_encoder.fit(self.df["diputado_nombre"].to_frame())
         autores_dict = self.df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
-        self.encoded_authors = DictVectorizer(sparse=False, separator="_").fit(autores_dict)
+        self.authors_encoder.fit(autores_dict)
 
     def _split_dataframe(self):
         df = self.df
@@ -123,14 +123,12 @@ class NeuralNetwork:
 
     def _get_deputies_input(self, df: pd.DataFrame):
         transformed = self.legislators_encoder.transform(df["diputado_nombre"].to_frame())
-        return pd.DataFrame(
-            np.array(transformed), columns=self.legislators_encoder.get_feature_names()
-        )
+        return pd.DataFrame(np.array(transformed), columns=self.legislators_encoder.get_feature_names())
 
     def _get_authors_input(self, df: pd.DataFrame):
         autores_dict = df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
-        transformed = self.encoded_authors.transform(autores_dict)
-        return pd.DataFrame(np.array(transformed), columns=self.encoded_authors.get_feature_names_out(["partido"]))
+        transformed = self.authors_encoder.transform(autores_dict)
+        return pd.DataFrame(np.array(transformed), columns=self.authors_encoder.get_feature_names())
 
     def _generate_inputs(self):
         # One hot encode votos
@@ -162,11 +160,11 @@ class NeuralNetwork:
     def _create_text_embeddings(self):
         law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "texto"]]
         law_and_text["texto"] = law_and_text["texto"].map(lambda x: self.embedder.create_law_text_embedding(x))
-        law_and_embedding = pd.DataFrame(data=law_and_text["texto"].tolist(), index=law_and_text["ley"]).reset_index()
+        text_and_embedding = pd.DataFrame(data=law_and_text["texto"].tolist(), index=law_and_text["ley"]).reset_index()
 
-        self.laws_train = self._get_embeddings(self.df_train, law_and_embedding)
-        self.laws_val = self._get_embeddings(self.df_val, law_and_embedding)
-        self.laws_test = self._get_embeddings(self.df_test, law_and_embedding)
+        self.texts_train = self._get_embeddings(self.df_train, text_and_embedding)
+        self.texts_val = self._get_embeddings(self.df_val, text_and_embedding)
+        self.texts_test = self._get_embeddings(self.df_test, text_and_embedding)
 
     def _create_title_embeddings(self):
         law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "titulo"]]
@@ -181,11 +179,11 @@ class NeuralNetwork:
 
     def _create_neuronal_network(self):
         # Dimensiones
-        laws_input_dim = self.laws_train.shape[1]
-        deputies_input_dim = len(self.legislators_encoder.get_feature_names())
-        authors_input_dim = len(self.encoded_authors.get_feature_names_out())
+        laws_input_dim = self.texts_train.shape[1]
         titles_input_dim = self.titles_train.shape[1]
+        deputies_input_dim = len(self.legislators_encoder.get_feature_names())
         output_dim = len(self.votes_encoder.get_feature_names())
+        authors_input_dim = len(self.authors_encoder.get_feature_names())
 
         ### INPUTS
 
@@ -257,7 +255,7 @@ class NeuralNetwork:
         history: History = self.model.fit(
             {
                 "autores": self.authors_train,
-                "ley": self.laws_train,
+                "ley": self.texts_train,
                 "politico": self.deputies_train,
                 "anio": self.year_train,
                 "titulos": self.titles_train,
@@ -268,7 +266,7 @@ class NeuralNetwork:
             validation_data=(
                 {
                     "autores": self.authors_val,
-                    "ley": self.laws_val,
+                    "ley": self.texts_val,
                     "politico": self.deputies_val,
                     "anio": self.year_val,
                     "titulos": self.titles_val,
@@ -308,14 +306,14 @@ class NeuralNetwork:
         self.prediction = self.model.predict(
             {
                 "autores": self.authors_test,
-                "ley": self.laws_test,
+                "ley": self.texts_test,
                 "politico": self.deputies_test,
                 "anio": self.year_test,
                 "titulos": self.titles_test,
             },
             batch_size=2,
         )
-        POSSIBLE_VOTES = self.encoded_votes.categories_[0]
+        POSSIBLE_VOTES = self.votes_encoder.get_categories()
         max_probs_index = np.argmax(self.prediction, axis=1)
         vote_predictions = [POSSIBLE_VOTES[i] for i in max_probs_index]
 
@@ -342,12 +340,12 @@ class NeuralNetwork:
         y_test_labels = np.argmax(self.y_test, axis=1)
         # Generate the classification report
         report: str = classification_report(
-            y_test_labels, y_pred_labels, target_names=self.encoded_votes.categories_[0]
+            y_test_labels, y_pred_labels, target_names=self.votes_encoder.get_categories()
         )
         self._save_report(report)
 
         ConfusionMatrixDisplay.from_predictions(
-            y_test_labels, y_pred_labels, display_labels=self.encoded_votes.categories_[0]
+            y_test_labels, y_pred_labels, display_labels=self.votes_encoder.get_categories()
         )  # normalize?
 
     def _save_report(self, report: str):

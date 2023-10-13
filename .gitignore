@@ -161,3 +161,4 @@ deploy.zip
 my_first_model.png
 *.h5
 *model.json
+*.pkl

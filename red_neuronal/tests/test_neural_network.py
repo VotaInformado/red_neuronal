@@ -57,7 +57,7 @@ class NeuralNetworkTestCase(TestCase):
         neural_network = NeuralNetwork()
         neural_network.train(df)
 
-    def test_neural_network_fit_with_in_memory_modely(self):
+    def test_neural_network_fit_with_in_memory_model(self):
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
         fit_df: pd.DataFrame = self.create_fit_df(train_df)
         neural_network = NeuralNetwork()
