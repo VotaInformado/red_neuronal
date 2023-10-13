@@ -45,6 +45,7 @@ class NeuralNetworkTestCase(TestCase):
         return fit_df
 
     def remove_persistence_files(self):
+        os.makedirs(os.path.dirname(self.MODEL_SAVING_DIR), exist_ok=True)  # for Github Actions
         files = os.listdir(settings.MODEL_SAVING_DIR)
         # Iterate through the files and remove them
         for file in files:
