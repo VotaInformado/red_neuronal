@@ -158,3 +158,6 @@ cython_debug/
 deploy.zip
 
 .python-version
+my_first_model.png
+*.h5
+*model.json
