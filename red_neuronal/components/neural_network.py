@@ -1,5 +1,5 @@
 import os
-from sklearn.preprocessing import OneHotEncoder
+
 from sklearn.utils import shuffle
 import numpy as np
 from django.conf import settings
@@ -20,13 +20,20 @@ from keras.callbacks import History
 import pandas as pd
 import matplotlib.pyplot as plt
 import collections
+from red_neuronal.components.encoder import LegislatorsEncoder, VotesEncoder
 
 # Project
 from red_neuronal.components.universal_embedding import UniversalEmbedding
+from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 
 
 class NeuralNetwork:
-    def __init__(self, df: pd.DataFrame):
+    MODEL_FILE_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.json"
+    WEIGHTS_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.h5"
+    HISTORY_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/history.json"
+    REPORT_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/report.txt"
+
+    def __init__(self):
         # Lo que se necesita es un DataFrame con las columnas:
         # - Ley
         # - Titulo
@@ -38,32 +45,50 @@ class NeuralNetwork:
         # - Año
 
         self.embedder = UniversalEmbedding()
-        self.df = self.normalize_years(df)
+        self.model = None
 
-    def compile(self):
-        # Whole compilation process
-        self.fit_encoders()
-        self.generate_inputs()
-        self.get_embeddings()
-        self.create_neuronal_network()
-        self.fit_model()
-        self.save_model()
+    def train(self, df: pd.DataFrame):
+        """Trains the model from scratch, using the database saved in the class."""
+        self.df: pd.DataFrame = self._normalize_years(df)
+        self._fit_encoders()
+        self._split_dataframe()
+        self._generate_inputs()
+        self._create_embeddings()
+        self._create_neuronal_network()
+        self._compile_model()
+        self._fit_model()
+        self._save_model()
 
-    def fit(self):
-        # Just fitting new data
-        self.generate_inputs()
-        self.fit_model()
-        self.save_model()
+    def fit(self, df: pd.DataFrame):
+        """Fits the model using new data saved in the class."""
+        # TODO: verificar si cambia al menos la dimensión de una de las capas, de ser así, volver a entrenar
+        self._load_model()  # Will raise an exception if the model is not trained
+        self.df: pd.DataFrame = self._normalize_years(df)
+        self._load_encoders()
+        self._split_dataframe()
+        self._generate_inputs()
+        self._create_embeddings()
+        self._compile_model()
+        self._fit_model()
+        self._save_model()
 
-    def fit_encoders(self):
-        df = self.df
-        self.encoded_votes = OneHotEncoder(handle_unknown="ignore", sparse=False).fit(df["voto"].to_frame())
-        self.encoded_deputies = OneHotEncoder(handle_unknown="ignore", sparse=False).fit(
-            df["diputado_nombre"].to_frame()
-        )
-        autores_dict = df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
+    def _load_encoders(self):
+        self.votes_encoder = VotesEncoder(is_training=False)
+        self.legislators_encoder = LegislatorsEncoder(is_training=False)
+        autores_dict = self.df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
+        self.encoded_authors = DictVectorizer(sparse=False, separator="_").fit(autores_dict)
+        # TODO: cambiar el último
+
+    def _fit_encoders(self):
+        self.votes_encoder = VotesEncoder(is_training=True)
+        self.legislators_encoder = LegislatorsEncoder(is_training=True)
+        self.votes_encoder.fit(self.df["voto"].to_frame())
+        self.legislators_encoder.fit(self.df["diputado_nombre"].to_frame())
+        autores_dict = self.df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
         self.encoded_authors = DictVectorizer(sparse=False, separator="_").fit(autores_dict)
 
+    def _split_dataframe(self):
+        df = self.df
         leyes = df["ley"].unique()
         leyes_train, leyes_test = train_test_split(leyes, train_size=0.7)
         leyes_val, leyes_test = train_test_split(leyes_test, train_size=0.66)
@@ -90,85 +115,77 @@ class NeuralNetwork:
             f"Porcentaje leyes test-holdout: {leyes_test.shape[0]/leyes.shape[0]:.2%} --> {leyes_test.shape[0]} leyes = {self.df_test.shape[0]} votaciones"
         )
 
-    def normalize_years(self, df: pd.DataFrame):
+    def _normalize_years(self, df: pd.DataFrame):
         max_year = df["anio_exp"].max()
         min_year = df["anio_exp"].min()
         df["anio_exp_cont"] = (df["anio_exp"] - min_year) / (max_year - min_year)
         return df
 
-    def get_deputies_input(self, df: pd.DataFrame):
-        transformed = self.encoded_deputies.transform(df["diputado_nombre"].to_frame())
+    def _get_deputies_input(self, df: pd.DataFrame):
+        transformed = self.legislators_encoder.transform(df["diputado_nombre"].to_frame())
         return pd.DataFrame(
-            np.array(transformed), columns=self.encoded_deputies.get_feature_names_out(["diputado_nombre"])
+            np.array(transformed), columns=self.legislators_encoder.get_feature_names()
         )
 
-    def get_authors_input(self, df: pd.DataFrame):
+    def _get_authors_input(self, df: pd.DataFrame):
         autores_dict = df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
         transformed = self.encoded_authors.transform(autores_dict)
         return pd.DataFrame(np.array(transformed), columns=self.encoded_authors.get_feature_names_out(["partido"]))
 
-    def generate_inputs(self):
+    def _generate_inputs(self):
         # One hot encode votos
         self.y_train, self.y_val, self.y_test = [
-            self.encoded_votes.transform(y.to_frame()) for y in [self.y_train, self.y_val, self.y_test]
+            self.votes_encoder.transform(y.to_frame()) for y in [self.y_train, self.y_val, self.y_test]
         ]
 
-        self.deputies_train = self.get_deputies_input(self.df_train)
-        self.deputies_val = self.get_deputies_input(self.df_val)
-        self.deputies_test = self.get_deputies_input(self.df_test)
+        self.deputies_train = self._get_deputies_input(self.df_train)
+        self.deputies_val = self._get_deputies_input(self.df_val)
+        self.deputies_test = self._get_deputies_input(self.df_test)
 
-        self.authors_train = self.get_authors_input(self.df_train)
-        self.authors_val = self.get_authors_input(self.df_val)
-        self.authors_test = self.get_authors_input(self.df_test)
+        self.authors_train = self._get_authors_input(self.df_train)
+        self.authors_val = self._get_authors_input(self.df_val)
+        self.authors_test = self._get_authors_input(self.df_test)
 
         self.year_train = self.df_train["anio_exp_cont"]
         self.year_val = self.df_val["anio_exp_cont"]
         self.year_test = self.df_test["anio_exp_cont"]
 
-    def get_embeddings(self):
-        self.get_text_embeddings()
-        self.get_title_embeddings()
+    def _create_embeddings(self):
+        self._create_text_embeddings()
+        self._create_title_embeddings()
 
-    def get_text_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "texto"]]
-        law_and_text["texto"] = law_and_text["texto"].map(lambda x: self.embedder.create_law_text_embedding(x))
-        self.law_and_embedding = pd.DataFrame(
-            data=law_and_text["texto"].tolist(), index=law_and_text["ley"]
-        ).reset_index()
-
-        self.laws_train = self._get_text_embeddings(self.df_train)
-        self.laws_val = self._get_text_embeddings(self.df_val)
-        self.laws_test = self._get_text_embeddings(self.df_test)
-
-    def _get_text_embeddings(self, df: pd.DataFrame):
-        embeddings = pd.DataFrame.merge(df["ley"], self.law_and_embedding, how="left", on="ley")
+    def _get_embeddings(self, df: pd.DataFrame, embeddings: pd.DataFrame):
+        embeddings = pd.DataFrame.merge(df["ley"], embeddings, how="left", on="ley")
         embeddings.drop(columns=["ley"], inplace=True)
         return embeddings
 
-    def get_title_embeddings(self):
-        # Obtener embedding para cada titulo
+    def _create_text_embeddings(self):
+        law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "texto"]]
+        law_and_text["texto"] = law_and_text["texto"].map(lambda x: self.embedder.create_law_text_embedding(x))
+        law_and_embedding = pd.DataFrame(data=law_and_text["texto"].tolist(), index=law_and_text["ley"]).reset_index()
+
+        self.laws_train = self._get_embeddings(self.df_train, law_and_embedding)
+        self.laws_val = self._get_embeddings(self.df_val, law_and_embedding)
+        self.laws_test = self._get_embeddings(self.df_test, law_and_embedding)
+
+    def _create_title_embeddings(self):
         law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "titulo"]]
         law_and_text["titulo"] = law_and_text["titulo"].map(lambda x: self.embedder.create_law_text_embedding(x))
-        self.title_and_embedding = pd.DataFrame(
+        title_and_embedding = pd.DataFrame(
             data=law_and_text["titulo"].tolist(), index=law_and_text["ley"]
         ).reset_index()
 
-        self.titles_train = self._get_title_embeddings(self.df_train)
-        self.titles_val = self._get_title_embeddings(self.df_val)
-        self.titles_test = self._get_title_embeddings(self.df_test)
+        self.titles_train = self._get_embeddings(self.df_train, title_and_embedding)
+        self.titles_val = self._get_embeddings(self.df_val, title_and_embedding)
+        self.titles_test = self._get_embeddings(self.df_test, title_and_embedding)
 
-    def _get_title_embeddings(self, df: pd.DataFrame):
-        embeddings = pd.DataFrame.merge(df["ley"], self.title_and_embedding, how="left", on="ley")
-        embeddings.drop(columns=["ley"], inplace=True)
-        return embeddings
-
-    def create_neuronal_network(self):
+    def _create_neuronal_network(self):
         # Dimensiones
         laws_input_dim = self.laws_train.shape[1]
-        deputies_input_dim = len(self.encoded_deputies.get_feature_names_out())
+        deputies_input_dim = len(self.legislators_encoder.get_feature_names())
         authors_input_dim = len(self.encoded_authors.get_feature_names_out())
         titles_input_dim = self.titles_train.shape[1]
-        output_dim = len(self.encoded_votes.get_feature_names_out())
+        output_dim = len(self.votes_encoder.get_feature_names())
 
         ### INPUTS
 
@@ -224,6 +241,9 @@ class NeuralNetwork:
             outputs=[features],
         )
 
+        keras.utils.plot_model(self.model, "my_first_model.png", show_shapes=True)
+
+    def _compile_model(self):
         self.model.compile(
             optimizer=keras.optimizers.Adam(),
             loss={
@@ -233,29 +253,7 @@ class NeuralNetwork:
             # loss_weights={"voto_softmax": 1.0},
         )
 
-        # keras.utils.plot_model(self.model, "my_first_model.png", show_shapes=True)
-
-    def save_model(self):
-        model_json = self.model.to_json()
-        os.makedirs(os.path.dirname(settings.MODEL_SAVING_DIR), exist_ok=True)
-        with open(settings.MODEL_SAVING_DIR, "w") as json_file:
-            json_file.write(model_json)
-        os.makedirs(os.path.dirname(settings.WEIGHTS_SAVING_DIR), exist_ok=True)
-        self.model.save_weights(settings.WEIGHTS_SAVING_DIR)
-
-    def load_model(self):
-        with open(settings.MODEL_SAVING_DIR, "r") as json_file:
-            loaded_model_json = json_file.read()
-
-        # Load weights into new model
-        loaded_model: keras.Model = model_from_json(loaded_model_json)
-        loaded_model.load_weights(settings.WEIGHTS_SAVING_DIR)
-        self.model = loaded_model
-
-    def save_history(self, history: History):
-        pass  # Mongo DB?
-
-    def fit_model(self):
+    def _fit_model(self):
         history: History = self.model.fit(
             {
                 "autores": self.authors_train,
@@ -278,9 +276,35 @@ class NeuralNetwork:
                 {"voto_softmax": self.y_val},
             ),
         )
-        self.save_history(history)
+        self._save_history(history)
 
-    def predict(self):
+    def _save_model(self):
+        model_json = self.model.to_json()
+        os.makedirs(os.path.dirname(self.MODEL_FILE_SAVING_DIR), exist_ok=True)
+        with open(self.MODEL_FILE_SAVING_DIR, "w") as json_file:
+            json_file.write(model_json)
+        os.makedirs(os.path.dirname(self.WEIGHTS_SAVING_DIR), exist_ok=True)
+        self.model.save_weights(self.WEIGHTS_SAVING_DIR)
+
+    def _load_model(self):
+        if self.model is not None:
+            # The model is still loaded in memory, no need to load it again
+            return
+        try:
+            with open(self.MODEL_FILE_SAVING_DIR, "r") as json_file:
+                loaded_model_json = json_file.read()
+
+            # Load weights into new model
+            loaded_model: keras.Model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(self.WEIGHTS_SAVING_DIR)
+            self.model = loaded_model
+        except FileNotFoundError:
+            raise UntrainedNeuralNetwork()
+
+    def _save_history(self, history: History):
+        pass  # Mongo DB?
+
+    def _predict(self):
         self.prediction = self.model.predict(
             {
                 "autores": self.authors_test,
@@ -309,7 +333,7 @@ class NeuralNetwork:
         plt.title("Cantidad de votos predecidos por categoría")
         plt.show()
 
-    def evaluate(self):
+    def _evaluate(self):
         # Make predictions on the validation data
         y_pred = self.prediction
 
@@ -320,15 +344,15 @@ class NeuralNetwork:
         report: str = classification_report(
             y_test_labels, y_pred_labels, target_names=self.encoded_votes.categories_[0]
         )
-        self.save_report(report)
+        self._save_report(report)
 
         ConfusionMatrixDisplay.from_predictions(
             y_test_labels, y_pred_labels, display_labels=self.encoded_votes.categories_[0]
         )  # normalize?
 
-    def save_report(self, report: str):
-        os.makedirs(os.path.dirname(settings.REPORT_SAVING_DIR), exist_ok=True)
-        with open(settings.REPORT_SAVING_DIR, "w") as file:
+    def _save_report(self, report: str):
+        os.makedirs(os.path.dirname(self.REPORT_SAVING_DIR), exist_ok=True)
+        with open(self.REPORT_SAVING_DIR, "w") as file:
             file.write(report)
 
     # def save_results(self):

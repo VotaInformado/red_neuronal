@@ -1,6 +1,9 @@
 FROM python:3.10
 RUN apt-get update -y
 
+# Install graphviz
+RUN apt-get install -y graphviz
+
 COPY . /app
 RUN pip3 install -r /app/requirements.txt
 
