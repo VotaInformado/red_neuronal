@@ -1,4 +1,5 @@
 import os
+import shutil
 import random
 import pandas as pd
 from django.test import TestCase
@@ -45,13 +46,8 @@ class NeuralNetworkTestCase(TestCase):
         return fit_df
 
     def remove_persistence_files(self):
-        os.makedirs(os.path.dirname(self.MODEL_SAVING_DIR), exist_ok=True)  # for Github Actions
-        files = os.listdir(settings.MODEL_SAVING_DIR)
-        # Iterate through the files and remove them
-        for file in files:
-            file_path = os.path.join(settings.MODEL_SAVING_DIR, file)
-            if os.path.isfile(file_path):
-                os.remove(file_path)
+        if os.path.exists(settings.FILES_COMMON_DIR):
+            shutil.rmtree(settings.FILES_COMMON_DIR)
 
     def test_neural_network_training(self):
         df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
