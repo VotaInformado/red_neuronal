@@ -85,18 +85,18 @@ class NeuralNetwork:
 
         self.votes_encoder.fit(self.df["vote"].to_frame())
         self.legislators_encoder.fit(self.df["voter_id"].to_frame())
-        autores_dict = self.df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
-        self.authors_encoder.fit(autores_dict)
+        authors_dict = self.df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
+        self.authors_encoder.fit(authors_dict)
 
     def _split_dataframe(self):
         df = self.df
-        leyes = df["project_id"].unique()
-        leyes_train, leyes_test = train_test_split(leyes, train_size=0.7)
-        leyes_val, leyes_test = train_test_split(leyes_test, train_size=0.66)
+        laws = df["project_id"].unique()
+        laws_train, laws_test = train_test_split(laws, train_size=0.7)
+        laws_val, laws_test = train_test_split(laws_test, train_size=0.66)
 
-        self.df_train = df.loc[df["project_id"].isin(leyes_train)]
-        self.df_val = df.loc[df["project_id"].isin(leyes_val)]
-        self.df_test = df.loc[df["project_id"].isin(leyes_test)]
+        self.df_train = df.loc[df["project_id"].isin(laws_train)]
+        self.df_val = df.loc[df["project_id"].isin(laws_val)]
+        self.df_test = df.loc[df["project_id"].isin(laws_test)]
 
         self.y_train = self.df_train["vote"]
         self.y_val = self.df_val["vote"]
@@ -106,29 +106,19 @@ class NeuralNetwork:
         self.df_val.drop(columns=["vote"])
         self.df_test.drop(columns=["vote"])
 
-        print(
-            f"Porcentaje leyes train: {leyes_train.shape[0]/leyes.shape[0]:.2%} --> {leyes_train.shape[0]} leyes = {self.df_train.shape[0]} votaciones"
-        )
-        print(
-            f"Porcentaje leyes validation: {leyes_val.shape[0]/leyes.shape[0]:.2%} --> {leyes_val.shape[0]} leyes = {self.df_val.shape[0]} votaciones"
-        )
-        print(
-            f"Porcentaje leyes test-holdout: {leyes_test.shape[0]/leyes.shape[0]:.2%} --> {leyes_test.shape[0]} leyes = {self.df_test.shape[0]} votaciones"
-        )
-
     def _normalize_years(self, df: pd.DataFrame):
         max_year = df["project_year"].max()
         min_year = df["project_year"].min()
         df["project_year_cont"] = (df["project_year"] - min_year) / (max_year - min_year)
         return df
 
-    def _get_deputies_input(self, df: pd.DataFrame):
+    def _get_legislators_input(self, df: pd.DataFrame):
         transformed = self.legislators_encoder.transform(df["voter_id"].to_frame())
         return pd.DataFrame(np.array(transformed), columns=self.legislators_encoder.get_feature_names())
 
     def _get_authors_input(self, df: pd.DataFrame):
-        autores_dict = df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
-        transformed = self.authors_encoder.transform(autores_dict)
+        authors_dict = df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
+        transformed = self.authors_encoder.transform(authors_dict)
         return pd.DataFrame(np.array(transformed), columns=self.authors_encoder.get_feature_names())
 
     def _generate_inputs(self):
@@ -137,9 +127,9 @@ class NeuralNetwork:
             self.votes_encoder.transform(y.to_frame()) for y in [self.y_train, self.y_val, self.y_test]
         ]
 
-        self.deputies_train = self._get_deputies_input(self.df_train)
-        self.deputies_val = self._get_deputies_input(self.df_val)
-        self.deputies_test = self._get_deputies_input(self.df_test)
+        self.legislators_train = self._get_legislators_input(self.df_train)
+        self.legislators_val = self._get_legislators_input(self.df_val)
+        self.legislators_test = self._get_legislators_input(self.df_test)
 
         self.authors_train = self._get_authors_input(self.df_train)
         self.authors_val = self._get_authors_input(self.df_val)
@@ -160,8 +150,12 @@ class NeuralNetwork:
 
     def _create_text_embeddings(self):
         law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_text"]]
-        law_and_text["project_text"] = law_and_text["project_text"].map(lambda x: self.embedder.create_law_text_embedding(x))
-        text_and_embedding = pd.DataFrame(data=law_and_text["project_text"].tolist(), index=law_and_text["project_id"]).reset_index()
+        law_and_text["project_text"] = law_and_text["project_text"].map(
+            lambda x: self.embedder.create_law_text_embedding(x)
+        )
+        text_and_embedding = pd.DataFrame(
+            data=law_and_text["project_text"].tolist(), index=law_and_text["project_id"]
+        ).reset_index()
 
         self.texts_train = self._get_embeddings(self.df_train, text_and_embedding)
         self.texts_val = self._get_embeddings(self.df_val, text_and_embedding)
@@ -169,7 +163,9 @@ class NeuralNetwork:
 
     def _create_title_embeddings(self):
         law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_title"]]
-        law_and_text["project_title"] = law_and_text["project_title"].map(lambda x: self.embedder.create_law_text_embedding(x))
+        law_and_text["project_title"] = law_and_text["project_title"].map(
+            lambda x: self.embedder.create_law_text_embedding(x)
+        )
         title_and_embedding = pd.DataFrame(
             data=law_and_text["project_title"].tolist(), index=law_and_text["project_id"]
         ).reset_index()
@@ -178,67 +174,83 @@ class NeuralNetwork:
         self.titles_val = self._get_embeddings(self.df_val, title_and_embedding)
         self.titles_test = self._get_embeddings(self.df_test, title_and_embedding)
 
-    def _create_neuronal_network(self):
-        # Dimensiones
-        laws_input_dim = self.texts_train.shape[1]
-        titles_input_dim = self.titles_train.shape[1]
-        deputies_input_dim = len(self.legislators_encoder.get_feature_names())
-        output_dim = len(self.votes_encoder.get_feature_names())
-        authors_input_dim = len(self.authors_encoder.get_feature_names())
+    def _get_input_dimensions(self):
+        self.law_texts_input_dim = self.texts_train.shape[1]
+        self.law_titles_input_dim = self.titles_train.shape[1]
+        self.legislators_input_dim = len(self.legislators_encoder.get_feature_names())
+        self.authors_input_dim = len(self.authors_encoder.get_feature_names())
 
-        ### INPUTS
+    def _create_network_inputs(self):
+        self.law_texts_input = keras.Input(
+            shape=(self.law_texts_input_dim,), name="law_texts"
+        )  # Variable-length sequence of ints
+        self.legislators_input = keras.Input(shape=(self.legislators_input_dim,), name="legislators")
+        self.authors_input = keras.Input(shape=(self.authors_input_dim,), name="authors")
+        self.years_input = keras.Input(shape=(1,), name="years")
+        self.law_titles_input = keras.Input(shape=(self.law_titles_input_dim,), name="law_titles")
 
-        law_input = keras.Input(shape=(laws_input_dim,), name="ley")  # Variable-length sequence of ints
-        politician_input = keras.Input(shape=(deputies_input_dim,), name="politico")
-        authors_input = keras.Input(shape=(authors_input_dim,), name="autores")
-        anio_input = keras.Input(shape=(1,), name="anio")
-        title_input = keras.Input(shape=(titles_input_dim,), name="titulos")
-
-        ### CAPAS
-
-        # parties_sigmoid = layers.Dense(units=cant_partidos, activation="sigmoid")(parties_input)
-
-        # EMBEDDING
-
-        # Embed each word in the title into a 64-dimensional vector
-        law_features = layers.Embedding(laws_input_dim, int(laws_input_dim / 10), name="law_embedding")(law_input)
-        politician_features = layers.Embedding(deputies_input_dim, 10, name="politician_embedding")(politician_input)
-        authors_features = layers.Embedding(authors_input_dim, int(authors_input_dim / 10), name="authors_embedding")(
-            authors_input
+    def _create_embeddings_layers(self):
+        self.law_features = layers.Embedding(
+            self.law_texts_input_dim, int(self.law_texts_input_dim / 10), name="law_embedding"
+        )(self.law_texts_input)
+        self.legislators_features = layers.Embedding(self.legislators_input_dim, 10, name="legislators_embedding")(
+            self.legislators_input
         )
-        title_features = layers.Embedding(titles_input_dim, int(titles_input_dim / 10), name="title_embedding")(
-            title_input
+        self.authors_features = layers.Embedding(
+            self.authors_input_dim, int(self.authors_input_dim / 10), name="authors_embedding"
+        )(self.authors_input)
+        self.title_features = layers.Embedding(
+            self.law_titles_input_dim, int(self.law_titles_input_dim / 10), name="title_embedding"
+        )(self.law_titles_input)
+
+    def _create_flattened_layers(self):
+        self.flatten_law_features = layers.Flatten()(self.law_features)
+        self.flatten_legislators_features = layers.Flatten()(self.legislators_features)
+        self.flatten_authors_features = layers.Flatten()(self.authors_features)
+        self.flatten_title = layers.Flatten()(self.title_features)
+
+    def _create_concatenated_layer(self):
+        self.features = layers.Concatenate(axis=-1, name="concatenados")(
+            [
+                self.flatten_law_features,
+                self.flatten_legislators_features,
+                self.flatten_authors_features,
+                self.flatten_title,
+                self.years_input,
+            ]
         )
 
-        # Reduce sequence of embedded words in the title into a single 128-dimensional vector
-        # text_features = layers.LSTM(128)(text_features)
+    def _add_extra_dense_layers(self):
+        self.features = layers.Dense(128, activation="relu", name="relu_1")(self.features)
+        self.features = layers.Dense(128, activation="relu", name="relu_2")(self.features)
+        self.features = layers.Dense(128, activation="relu", name="relu_3")(self.features)
 
-        # FLATENATION
-        flatten_law_features = layers.Flatten()(law_features)
-        flatten_politician_features = layers.Flatten()(politician_features)
-        flatten_authors_features = layers.Flatten()(authors_features)
-        flatten_title = layers.Flatten()(title_features)
-        # CONCATENACION
+    def _create_output_layer(self):
+        self.output_dim = len(self.votes_encoder.get_feature_names())
+        self.features = layers.Dense(self.output_dim, name="vote")(self.features)
+        self.features = layers.Activation("softmax", name="softmax_vote")(self.features)
 
-        # features = layers.concatenate([law_features, politician_features, authors_features], axis=2 )
-        features = layers.Concatenate(axis=-1, name="concatenados")(
-            [flatten_law_features, flatten_politician_features, flatten_authors_features, flatten_title, anio_input]
-        )
-        # DENSAS
-
-        features = layers.Dense(128, activation="relu", name="relu_1")(features)
-        features = layers.Dense(128, activation="relu", name="relu_2")(features)
-        features = layers.Dense(128, activation="relu", name="relu_3")(features)
-
-        # Stick a department classifier on top of the features
-        features = layers.Dense(output_dim, name="vote")(features)
-        features = layers.Activation("softmax", name="voto_softmax")(features)
-
-        # Instantiate an end-to-end model predicting both priority and department
+    def _create_model(self):
         self.model = keras.Model(
-            inputs=[law_input, politician_input, authors_input, anio_input, title_input],
-            outputs=[features],
+            inputs=[
+                self.law_texts_input,
+                self.legislators_input,
+                self.authors_input,
+                self.years_input,
+                self.law_titles_input,
+            ],
+            outputs=[self.features],
         )
+
+    def _create_neuronal_network(self):
+        self._get_input_dimensions()
+        self._create_network_inputs()
+        self._create_embeddings_layers()
+        self._create_flattened_layers()
+        self._create_concatenated_layer()
+        self._add_extra_dense_layers()
+        self._create_output_layer()
+        self._create_model()
 
         keras.utils.plot_model(self.model, "my_first_model.png", show_shapes=True)
 
@@ -246,33 +258,33 @@ class NeuralNetwork:
         self.model.compile(
             optimizer=keras.optimizers.Adam(),
             loss={
-                "voto_softmax": keras.losses.CategoricalCrossentropy(),
+                "softmax_vote": keras.losses.CategoricalCrossentropy(),
             },
             metrics=["accuracy"]
-            # loss_weights={"voto_softmax": 1.0},
+            # loss_weights={"softmax_vote": 1.0},
         )
 
     def _fit_model(self):
         history: History = self.model.fit(
             {
-                "autores": self.authors_train,
-                "ley": self.texts_train,
-                "politico": self.deputies_train,
-                "anio": self.year_train,
-                "titulos": self.titles_train,
+                "authors": self.authors_train,
+                "law_texts": self.texts_train,
+                "legislators": self.legislators_train,
+                "years": self.year_train,
+                "law_titles": self.titles_train,
             },
-            {"voto_softmax": self.y_train},
+            {"softmax_vote": self.y_train},
             epochs=4,
             batch_size=32,
             validation_data=(
                 {
-                    "autores": self.authors_val,
-                    "ley": self.texts_val,
-                    "politico": self.deputies_val,
-                    "anio": self.year_val,
-                    "titulos": self.titles_val,
+                    "authors": self.authors_val,
+                    "law_texts": self.texts_val,
+                    "legislators": self.legislators_val,
+                    "years": self.year_val,
+                    "law_titles": self.titles_val,
                 },
-                {"voto_softmax": self.y_val},
+                {"softmax_vote": self.y_val},
             ),
         )
         self._save_history(history)
@@ -306,25 +318,17 @@ class NeuralNetwork:
     def _predict(self):
         self.prediction = self.model.predict(
             {
-                "autores": self.authors_test,
-                "ley": self.texts_test,
-                "politico": self.deputies_test,
-                "anio": self.year_test,
-                "titulos": self.titles_test,
+                "authors": self.authors_test,
+                "law_texts": self.texts_test,
+                "legislators": self.legislators_test,
+                "years": self.year_test,
+                "law_titles": self.titles_test,
             },
             batch_size=2,
         )
         POSSIBLE_VOTES = self.votes_encoder.get_categories()
         max_probs_index = np.argmax(self.prediction, axis=1)
         vote_predictions = [POSSIBLE_VOTES[i] for i in max_probs_index]
-
-        # real_votes = y[int(len(y)*0.8):]
-        # total_votes = len(real_votes)
-        # correct_predictions = 0
-        # for i in range(total_votes):
-        #    if real_votes[i] == vote_predictions[i]:
-        #        correct_predictions += 1
-        # print(f"Porcentaje de acierto: {correct_predictions/total_votes}")
 
         freq = collections.Counter(vote_predictions)
         plt.figure(figsize=(10, 6))

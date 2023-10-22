@@ -53,7 +53,7 @@ class DataHandler:
         # Es un poco complicado mergear para tener el nombre de legisladores, y no aporta nada, por ahora, queda así
         # TODO: ver si el encoder puede recibir ids en vez de nombres
         final_df = votes_projects_and_authors.drop(["voter_party"], axis=1)  # La red neuronal no lo está usando
-        return votes_projects_and_authors
+        return final_df
 
     def _flatten_party_authors(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.groupby(["project_id"])["party"].apply(lambda x: ";".join(map(str, x))).reset_index()
