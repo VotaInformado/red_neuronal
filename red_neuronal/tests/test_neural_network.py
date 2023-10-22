@@ -7,42 +7,40 @@ from django.conf import settings
 
 # Project
 from red_neuronal.components.neural_network import NeuralNetwork
-from red_neuronal.tests.utils.faker import create_fake_df
+from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 
 
 class NeuralNetworkTestCase(TestCase):
     def setUp(self):
         self.COLUMNS = {
-            "ley": "int",
-            "expediente_inicial": "exp",
-            "partido": "str",
-            "voto": "vote",
-            "diputado_nombre": "str",
-            "texto": "text",
-            "titulo": "short_text",
-            "anio_exp": "year",
+            "project_id": "int",
+            "party_authors": "str",
+            "vote": "vote",
+            "voter_id": "str",
+            "project_text": "text",
+            "project_title": "short_text",
+            "project_year": "year",
         }
         self.remove_persistence_files()
 
     def create_fit_df(self, training_df: pd.DataFrame, fit_df_length=100):
-        votes = list(training_df["voto"].unique())
+        votes = list(training_df["vote"].unique())
         fit_votes = [random.choice(votes) for _ in range(fit_df_length)]
-        legislators = list(training_df["diputado_nombre"].unique())
+        legislators = list(training_df["voter_id"].unique())
         fit_legislators = [random.choice(legislators) for _ in range(fit_df_length)]
-        parties = list(training_df["partido"].unique())
+        parties = list(training_df["party_authors"].unique())
         fit_parties = [random.choice(parties) for _ in range(fit_df_length)]
         df_columns = {
-            "ley": "int",
-            "expediente_inicial": "exp",
-            "texto": "text",
-            "titulo": "short_text",
-            "anio_exp": "year",
+            "project_id": "int",
+            "project_text": "text",
+            "project_title": "short_text",
+            "project_year": "year",
         }
         fit_df = create_fake_df(df_columns, fit_df_length, as_dict=False)
-        fit_df["voto"] = fit_votes
-        fit_df["diputado_nombre"] = fit_legislators
-        fit_df["partido"] = fit_parties
+        fit_df["vote"] = fit_votes
+        fit_df["voter_id"] = fit_legislators
+        fit_df["party_authors"] = fit_parties
         return fit_df
 
     def remove_persistence_files(self):

@@ -35,14 +35,14 @@ class NeuralNetwork:
 
     def __init__(self):
         # Lo que se necesita es un DataFrame con las columnas:
-        # - Ley
-        # - Titulo
-        # - Texto
-        # - Legislador
-        # - Partido Legislador
-        # - Autores
-        # - Voto
-        # - Año
+        # - project_id
+        # - project_title
+        # - project_text
+        # - voter_id
+        # - Partido Legislador --> esto no se estaría usando 
+        # - party_authors
+        # - vote
+        # - project_year
 
         self.embedder = UniversalEmbedding()
         self.model = None
@@ -82,28 +82,28 @@ class NeuralNetwork:
         self.legislators_encoder = LegislatorsEncoder(is_training=True)
         self.authors_encoder = AuthorsEncoder(is_training=True)
 
-        self.votes_encoder.fit(self.df["voto"].to_frame())
-        self.legislators_encoder.fit(self.df["diputado_nombre"].to_frame())
-        autores_dict = self.df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
+        self.votes_encoder.fit(self.df["vote"].to_frame())
+        self.legislators_encoder.fit(self.df["voter_id"].to_frame())
+        autores_dict = self.df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
         self.authors_encoder.fit(autores_dict)
 
     def _split_dataframe(self):
         df = self.df
-        leyes = df["ley"].unique()
+        leyes = df["project_id"].unique()
         leyes_train, leyes_test = train_test_split(leyes, train_size=0.7)
         leyes_val, leyes_test = train_test_split(leyes_test, train_size=0.66)
 
-        self.df_train = df.loc[df["ley"].isin(leyes_train)]
-        self.df_val = df.loc[df["ley"].isin(leyes_val)]
-        self.df_test = df.loc[df["ley"].isin(leyes_test)]
+        self.df_train = df.loc[df["project_id"].isin(leyes_train)]
+        self.df_val = df.loc[df["project_id"].isin(leyes_val)]
+        self.df_test = df.loc[df["project_id"].isin(leyes_test)]
 
-        self.y_train = self.df_train["voto"]
-        self.y_val = self.df_val["voto"]
-        self.y_test = self.df_test["voto"]
+        self.y_train = self.df_train["vote"]
+        self.y_val = self.df_val["vote"]
+        self.y_test = self.df_test["vote"]
 
-        self.df_train.drop(columns=["voto"])
-        self.df_val.drop(columns=["voto"])
-        self.df_test.drop(columns=["voto"])
+        self.df_train.drop(columns=["vote"])
+        self.df_val.drop(columns=["vote"])
+        self.df_test.drop(columns=["vote"])
 
         print(
             f"Porcentaje leyes train: {leyes_train.shape[0]/leyes.shape[0]:.2%} --> {leyes_train.shape[0]} leyes = {self.df_train.shape[0]} votaciones"
@@ -116,17 +116,17 @@ class NeuralNetwork:
         )
 
     def _normalize_years(self, df: pd.DataFrame):
-        max_year = df["anio_exp"].max()
-        min_year = df["anio_exp"].min()
-        df["anio_exp_cont"] = (df["anio_exp"] - min_year) / (max_year - min_year)
+        max_year = df["project_year"].max()
+        min_year = df["project_year"].min()
+        df["project_year_cont"] = (df["project_year"] - min_year) / (max_year - min_year)
         return df
 
     def _get_deputies_input(self, df: pd.DataFrame):
-        transformed = self.legislators_encoder.transform(df["diputado_nombre"].to_frame())
+        transformed = self.legislators_encoder.transform(df["voter_id"].to_frame())
         return pd.DataFrame(np.array(transformed), columns=self.legislators_encoder.get_feature_names())
 
     def _get_authors_input(self, df: pd.DataFrame):
-        autores_dict = df["partido"].apply(lambda x: {"partido": x.split(";")}).tolist()
+        autores_dict = df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
         transformed = self.authors_encoder.transform(autores_dict)
         return pd.DataFrame(np.array(transformed), columns=self.authors_encoder.get_feature_names())
 
@@ -144,33 +144,33 @@ class NeuralNetwork:
         self.authors_val = self._get_authors_input(self.df_val)
         self.authors_test = self._get_authors_input(self.df_test)
 
-        self.year_train = self.df_train["anio_exp_cont"]
-        self.year_val = self.df_val["anio_exp_cont"]
-        self.year_test = self.df_test["anio_exp_cont"]
+        self.year_train = self.df_train["project_year_cont"]
+        self.year_val = self.df_val["project_year_cont"]
+        self.year_test = self.df_test["project_year_cont"]
 
     def _create_embeddings(self):
         self._create_text_embeddings()
         self._create_title_embeddings()
 
     def _get_embeddings(self, df: pd.DataFrame, embeddings: pd.DataFrame):
-        embeddings = pd.DataFrame.merge(df["ley"], embeddings, how="left", on="ley")
-        embeddings.drop(columns=["ley"], inplace=True)
+        embeddings = pd.DataFrame.merge(df["project_id"], embeddings, how="left", on="project_id")
+        embeddings.drop(columns=["project_id"], inplace=True)
         return embeddings
 
     def _create_text_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "texto"]]
-        law_and_text["texto"] = law_and_text["texto"].map(lambda x: self.embedder.create_law_text_embedding(x))
-        text_and_embedding = pd.DataFrame(data=law_and_text["texto"].tolist(), index=law_and_text["ley"]).reset_index()
+        law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_text"]]
+        law_and_text["project_text"] = law_and_text["project_text"].map(lambda x: self.embedder.create_law_text_embedding(x))
+        text_and_embedding = pd.DataFrame(data=law_and_text["project_text"].tolist(), index=law_and_text["project_id"]).reset_index()
 
         self.texts_train = self._get_embeddings(self.df_train, text_and_embedding)
         self.texts_val = self._get_embeddings(self.df_val, text_and_embedding)
         self.texts_test = self._get_embeddings(self.df_test, text_and_embedding)
 
     def _create_title_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["ley"])[["ley", "titulo"]]
-        law_and_text["titulo"] = law_and_text["titulo"].map(lambda x: self.embedder.create_law_text_embedding(x))
+        law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_title"]]
+        law_and_text["project_title"] = law_and_text["project_title"].map(lambda x: self.embedder.create_law_text_embedding(x))
         title_and_embedding = pd.DataFrame(
-            data=law_and_text["titulo"].tolist(), index=law_and_text["ley"]
+            data=law_and_text["project_title"].tolist(), index=law_and_text["project_id"]
         ).reset_index()
 
         self.titles_train = self._get_embeddings(self.df_train, title_and_embedding)
@@ -230,7 +230,7 @@ class NeuralNetwork:
         features = layers.Dense(128, activation="relu", name="relu_3")(features)
 
         # Stick a department classifier on top of the features
-        features = layers.Dense(output_dim, name="voto")(features)
+        features = layers.Dense(output_dim, name="vote")(features)
         features = layers.Activation("softmax", name="voto_softmax")(features)
 
         # Instantiate an end-to-end model predicting both priority and department
