@@ -48,13 +48,14 @@ class DataHandler:
         votes_and_projects = pd.merge(votes, law_projects, on="project_id")
         votes_and_projects = votes_and_projects.drop(["date"], axis=1)
         votes_and_projects = votes_and_projects.rename(columns={"person_id": "voter_id", "party": "voter_party"})
-        authors = self.flatten_party_authors(authors)
+        authors = self._flatten_party_authors(authors)
         votes_projects_and_authors = pd.merge(votes_and_projects, authors, on="project_id")
         # Es un poco complicado mergear para tener el nombre de legisladores, y no aporta nada, por ahora, queda así
         # TODO: ver si el encoder puede recibir ids en vez de nombres
+        final_df = votes_projects_and_authors.drop(["voter_party"], axis=1)  # La red neuronal no lo está usando
         return votes_projects_and_authors
 
-    def flatten_party_authors(self, df: pd.DataFrame) -> pd.DataFrame:
+    def _flatten_party_authors(self, df: pd.DataFrame) -> pd.DataFrame:
         df = df.groupby(["project_id"])["party"].apply(lambda x: ";".join(map(str, x))).reset_index()
         df.rename(columns={"party": "party_authors"}, inplace=True)
         df = df.drop_duplicates(subset=["project_id"])

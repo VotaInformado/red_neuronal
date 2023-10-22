@@ -3,36 +3,20 @@ import shutil
 import random
 import pandas as pd
 from django.db import models
-from django.test import TestCase
+from red_neuronal.tests.test_helpers.test_case import CustomTestCase
 from django.conf import settings
 
 # Project
+from red_neuronal.utils.enums import VoteChoices
 from red_neuronal.components.encoder import VotesEncoder
 from red_neuronal.components.neural_network import NeuralNetwork
 from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import TransformingUnseenData, UntrainedNeuralNetwork
 
 
-class VoteChoices(models.TextChoices):
-    # Ongoing status
-    ABSENT = "ABSENT", "Ausente"
-    ABSTENTION = "ABSTENTION", "Abstención"
-    NEGATIVE = "NEGATIVE", "Negativo"
-    POSITIVE = "POSITIVE", "Afirmativo"
-    PRESIDENT = ("PRESIDENT", "Presidente")
-
-
-class EncoderTestCase(TestCase):
-    def setUp(self):
-        self.vote_choices = VoteChoices.values
-        self.remove_persistence_files()
-
-    def remove_persistence_files(self):
-        if os.path.exists(settings.FILES_COMMON_DIR):
-            shutil.rmtree(settings.FILES_COMMON_DIR)
-
+class EncoderTestCase(CustomTestCase):
     def get_random_vote(self):
-        return random.choice(self.vote_choices)
+        return random.choice(VoteChoices.values)
 
     def test_basic_encoding(self):
         votes_data = [self.get_random_vote() for _ in range(20)]

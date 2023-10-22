@@ -2,7 +2,7 @@ import os
 import shutil
 import random
 import pandas as pd
-from django.test import TestCase
+from red_neuronal.tests.test_helpers.test_case import CustomTestCase
 from django.conf import settings
 
 # Project
@@ -11,18 +11,16 @@ from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 
 
-class NeuralNetworkTestCase(TestCase):
-    def setUp(self):
-        self.COLUMNS = {
-            "project_id": "int",
-            "party_authors": "str",
-            "vote": "vote",
-            "voter_id": "str",
-            "project_text": "text",
-            "project_title": "short_text",
-            "project_year": "year",
-        }
-        self.remove_persistence_files()
+class NeuralNetworkTestCase(CustomTestCase):
+    COLUMNS = {
+        "project_id": "int",
+        "party_authors": "str",
+        "vote": "vote",
+        "voter_id": "str",
+        "project_text": "text",
+        "project_title": "short_text",
+        "project_year": "year",
+    }
 
     def create_fit_df(self, training_df: pd.DataFrame, fit_df_length=100):
         votes = list(training_df["vote"].unique())
@@ -42,10 +40,6 @@ class NeuralNetworkTestCase(TestCase):
         fit_df["voter_id"] = fit_legislators
         fit_df["party_authors"] = fit_parties
         return fit_df
-
-    def remove_persistence_files(self):
-        if os.path.exists(settings.FILES_COMMON_DIR):
-            shutil.rmtree(settings.FILES_COMMON_DIR)
 
     def test_neural_network_training(self):
         df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)

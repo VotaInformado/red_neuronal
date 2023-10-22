@@ -1,20 +1,14 @@
-from django.db import models
 import random
 import pandas as pd
 from faker import Faker
 
+# Project
+from red_neuronal.utils.enums import VoteChoices
+
+
 fake = Faker()
 
 provinces = ["Buenos Aires", "CABA", "Córdoba", "Mendoza", "Santa Fe"]
-
-
-class VoteChoices(models.TextChoices):
-    # Ongoing status
-    ABSENT = "ABSENT", "Ausente"
-    ABSTENTION = "ABSTENTION", "Abstención"
-    NEGATIVE = "NEGATIVE", "Negativo"
-    POSITIVE = "POSITIVE", "Afirmativo"
-    PRESIDENT = ("PRESIDENT", "Presidente")
 
 
 def create_vote():

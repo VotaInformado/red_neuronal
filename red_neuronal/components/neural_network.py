@@ -34,12 +34,13 @@ class NeuralNetwork:
     REPORT_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/report.txt"
 
     def __init__(self):
+        # TODO: comentarios: no se usa el partido del votante, tal vez podríamos usarlo
         # Lo que se necesita es un DataFrame con las columnas:
         # - project_id
         # - project_title
         # - project_text
         # - voter_id
-        # - Partido Legislador --> esto no se estaría usando 
+        # - Partido Legislador --> TODO: esto no se estaría usando, entraría como voter_party
         # - party_authors
         # - vote
         # - project_year
