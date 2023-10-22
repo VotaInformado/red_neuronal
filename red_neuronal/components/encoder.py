@@ -89,7 +89,7 @@ class AuthorsEncoder(Encoder):
         self.encoder = DictVectorizer(sparse=False, separator="_")
 
     def _assert_no_new_data(self, data: list):
-        KEY_WORD = "partido"
+        KEY_WORD = "party_authors"
         values_list = [v[0] for d in data for k, v in d.items()]
         data_values = set([f"{KEY_WORD}_{value}" for value in values_list])
         loaded_features = set(self.get_feature_names())
