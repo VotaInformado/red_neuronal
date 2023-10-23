@@ -27,6 +27,12 @@ from red_neuronal.components.embedding import UniversalEmbedding
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 
 
+import tensorflow as tf
+
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+# No funciona para desactivar los warnings de tensorflow
+
 class NeuralNetwork:
     MODEL_FILE_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.json"
     WEIGHTS_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.h5"

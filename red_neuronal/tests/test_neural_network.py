@@ -1,11 +1,10 @@
-import os
-import shutil
 import random
 import pandas as pd
-from red_neuronal.tests.test_helpers.test_case import CustomTestCase
+from red_neuronal.tests.test_helpers.test_case import CustomTestCase, CustomAPITestCase
 from django.conf import settings
 
 # Project
+import red_neuronal.tests.test_helpers.mocks as mck
 from red_neuronal.components.neural_network import NeuralNetwork
 from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
