@@ -15,7 +15,7 @@ class NeuralNetworkTestCase(CustomTestCase):
         "project_id": "int",
         "party_authors": "str",
         "vote": "vote",
-        "voter_id": "str",
+        "voter_id": "int",
         "project_text": "text",
         "project_title": "short_text",
         "project_year": "year",

@@ -45,6 +45,7 @@ class DataHandler:
         return raw_df
 
     def _merge_data(self, votes, authors, legislators, law_projects):
+        # Result DF: voter_id, vote, project_id, project_title, project_text, project_year, party_authors
         votes_and_projects = pd.merge(votes, law_projects, on="project_id")
         votes_and_projects = votes_and_projects.drop(["date"], axis=1)
         votes_and_projects = votes_and_projects.rename(columns={"person_id": "voter_id", "party": "voter_party"})
