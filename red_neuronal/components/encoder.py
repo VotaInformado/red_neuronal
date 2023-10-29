@@ -51,7 +51,10 @@ class Encoder:
         data_values = set(list(data[data.columns[0]]))
         loaded_categories = set(self.get_categories())
         if not data_values.issubset(loaded_categories):
-            raise TransformingUnseenData()
+            extra_values = data_values.difference(loaded_categories)
+            if all([pd.isna(value) for value in extra_values]):
+                return
+            raise TransformingUnseenData(extra_values)
 
     def transform(self, data: pd.DataFrame):
         self._assert_no_new_data(data)
@@ -78,7 +81,7 @@ class LegislatorsEncoder(Encoder):
         super().__init__(is_training)
 
 
-class AuthorsEncoder(Encoder):
+class PartiesEncoder(Encoder):
     def __init__(self, is_training: bool):
         ENCODING_FILE_NAME = "authors_encoder.pkl"
         self.ENCODING_FILE_DIR = f"{settings.ENCODING_SAVING_DIR}/{ENCODING_FILE_NAME}"
@@ -94,4 +97,8 @@ class AuthorsEncoder(Encoder):
         data_values = set([f"{KEY_WORD}_{value}" for value in values_list])
         loaded_features = set(self.get_feature_names())
         if not data_values.issubset(loaded_features):
+            extra_values = data_values.difference(loaded_features)
+            if all([pd.isna(value) for value in extra_values]):
+                # If all the extra values are NaN, we can ignore them
+                return
             raise TransformingUnseenData()

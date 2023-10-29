@@ -46,8 +46,11 @@ class EncoderDataNotFound(EncodingException):
 
 
 class TransformingUnseenData(EncodingException):
-    def __init__(self):
+    def __init__(self, extra_values: list = []):
         code = "TRANSFORMING_UNSEEN_DATA"
         status_code = 400
-        description = "The data the encoder is trying to transform has values that were not present in the fitted data."
+        extra_values_str = ", ".join([str(value) for value in extra_values])
+        description = (
+            f"The encoder has found values that were not present in the fitted data. Extra values: {extra_values_str}"
+        )
         super().__init__(code, status_code, description)

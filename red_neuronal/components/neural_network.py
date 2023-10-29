@@ -20,7 +20,7 @@ from keras.callbacks import History
 import pandas as pd
 import matplotlib.pyplot as plt
 import collections
-from red_neuronal.components.encoder import AuthorsEncoder, LegislatorsEncoder, VotesEncoder
+from red_neuronal.components.encoder import PartiesEncoder, LegislatorsEncoder, VotesEncoder
 
 # Project
 from red_neuronal.components.embedding import UniversalEmbedding
@@ -30,8 +30,9 @@ from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 import tensorflow as tf
 
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 # No funciona para desactivar los warnings de tensorflow
+
 
 class NeuralNetwork:
     MODEL_FILE_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.json"
@@ -82,17 +83,17 @@ class NeuralNetwork:
     def _load_encoders(self):
         self.votes_encoder = VotesEncoder(is_training=False)
         self.legislators_encoder = LegislatorsEncoder(is_training=False)
-        self.authors_encoder = AuthorsEncoder(is_training=False)
+        self.parties_encoder = PartiesEncoder(is_training=False)
 
     def _fit_encoders(self):
         self.votes_encoder = VotesEncoder(is_training=True)
         self.legislators_encoder = LegislatorsEncoder(is_training=True)
-        self.authors_encoder = AuthorsEncoder(is_training=True)
+        self.parties_encoder = PartiesEncoder(is_training=True)
 
         self.votes_encoder.fit(self.df["vote"].to_frame())
         self.legislators_encoder.fit(self.df["voter_id"].to_frame())
-        authors_dict = self.df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
-        self.authors_encoder.fit(authors_dict)
+        authors_dict = self.df["party_authors"].apply(lambda x: {"party_authors": x.split(";") if x else []}).tolist()
+        self.parties_encoder.fit(authors_dict)
 
     def _split_dataframe(self):
         df = self.df
@@ -123,9 +124,9 @@ class NeuralNetwork:
         return pd.DataFrame(np.array(transformed), columns=self.legislators_encoder.get_feature_names())
 
     def _get_authors_input(self, df: pd.DataFrame):
-        authors_dict = df["party_authors"].apply(lambda x: {"party_authors": x.split(";")}).tolist()
-        transformed = self.authors_encoder.transform(authors_dict)
-        return pd.DataFrame(np.array(transformed), columns=self.authors_encoder.get_feature_names())
+        authors_dict = df["party_authors"].apply(lambda x: {"party_authors": x.split(";") if x else []}).tolist()
+        transformed = self.parties_encoder.transform(authors_dict)
+        return pd.DataFrame(np.array(transformed), columns=self.parties_encoder.get_feature_names())
 
     def _generate_inputs(self):
         # One hot encode votos
@@ -184,7 +185,7 @@ class NeuralNetwork:
         self.law_texts_input_dim = self.texts_train.shape[1]
         self.law_titles_input_dim = self.titles_train.shape[1]
         self.legislators_input_dim = len(self.legislators_encoder.get_feature_names())
-        self.authors_input_dim = len(self.authors_encoder.get_feature_names())
+        self.authors_input_dim = len(self.parties_encoder.get_feature_names())
 
     def _create_network_inputs(self):
         self.law_texts_input = keras.Input(

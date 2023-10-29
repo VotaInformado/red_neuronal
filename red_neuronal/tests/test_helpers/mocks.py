@@ -21,7 +21,7 @@ from red_neuronal.utils.enums import VoteChoices
 from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
 from red_neuronal.components.data_handler import DataHandler, TrainDataHandler
 
-BASE_URL = "http://localhost:8000"
+DEFAULT_NEW_OBJECTS = 50
 
 
 class FakeClass:
@@ -113,15 +113,16 @@ def mock_votes_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFram
 
 
 def mock_vote_existing_data(test_case: TestCase):
+    new_votes = getattr(test_case, "NEW_VOTES", DEFAULT_NEW_OBJECTS)
     existing_data_columns = ["project_id", "person_id", "vote"]
     selected_data = test_case.existing_votes[existing_data_columns]
-    limited_data = selected_data.head(test_case.NEW_VOTES)
+    limited_data = selected_data.head(new_votes)
 
     other_columns = {
         "date": "date",
         "party": "str",
     }
-    second_df: pd.DataFrame = create_fake_df(other_columns, n=test_case.NEW_VOTES, as_dict=False)
+    second_df: pd.DataFrame = create_fake_df(other_columns, n=new_votes, as_dict=False)
     limited_data["party"] = second_df["party"]
     limited_data["date"] = second_df["date"]
     return limited_data
@@ -163,9 +164,10 @@ def mock_authors_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFr
 
 
 def mock_authors_existing_data(test_case: TestCase):
+    new_authors = getattr(test_case, "NEW_AUTHORS", DEFAULT_NEW_OBJECTS)
     existing_data_columns = ["project_id", "party"]
     selected_data = test_case.existing_authors[existing_data_columns]
-    limited_data = selected_data.head(test_case.NEW_AUTHORS)
+    limited_data = selected_data.head(new_authors)
     return limited_data
 
 
@@ -199,9 +201,10 @@ def mock_projects_data(test_case: TestCase, use_existing_data: bool) -> pd.DataF
 
 
 def mock_projects_existing_data(test_case: TestCase):
+    new_projects = getattr(test_case, "NEW_PROJECTS", DEFAULT_NEW_OBJECTS)
     existing_df_columns = ["project_title", "project_text", "project_year"]
     selected_data = test_case.existing_projects[existing_df_columns]
-    limited_data = selected_data.head(test_case.NEW_PROJECTS)
+    limited_data = selected_data.head(new_projects)
     return limited_data
 
 

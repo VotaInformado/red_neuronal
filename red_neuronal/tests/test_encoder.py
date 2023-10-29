@@ -52,3 +52,15 @@ class EncoderTestCase(CustomTestCase):
         encoder = VotesEncoder(is_training=False)
         with self.assertRaises(TransformingUnseenData) as context:
             transformed_votes = encoder.transform(transform_df)
+
+    def test_transforming_unseen_data_does_not_raise_an_error_for_null_values(self):
+        votes_data = [self.get_random_vote() for _ in range(20)]
+        fit_data = [{"voto": vote} for vote in votes_data]
+        fit_df = pd.DataFrame(fit_data)
+        transform_data = fit_data.copy()
+        transform_data.append({"voto": None})
+        transform_df = pd.DataFrame(transform_data)
+        encoder = VotesEncoder(is_training=True)
+        encoder.fit(fit_df)
+        encoder = VotesEncoder(is_training=False)
+        transformed_votes = encoder.transform(transform_df)
