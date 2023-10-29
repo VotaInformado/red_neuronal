@@ -127,3 +127,10 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 FILES_COMMON_DIR = "red_neuronal/persistence"
 MODEL_SAVING_DIR = f"{FILES_COMMON_DIR}/model"
 ENCODING_SAVING_DIR = f"{FILES_COMMON_DIR}/encoder"
+
+# Data handler
+DATA_HANDLER_FILES_DIR = "data_handler"
+LAST_FETCHED_DATA_DIR = f"{DATA_HANDLER_FILES_DIR}/last_fetched_date.txt"
+
+# Recoleccion endpoints
+FITTING_DATA_ENDPOINT = ""

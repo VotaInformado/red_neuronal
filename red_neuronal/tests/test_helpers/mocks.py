@@ -19,7 +19,7 @@ from django.conf import settings
 from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.enums import VoteChoices
 from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
-from red_neuronal.components.data_handler import DataHandler
+from red_neuronal.components.data_handler import DataHandler, TrainDataHandler
 
 BASE_URL = "http://localhost:8000"
 
@@ -93,21 +93,42 @@ def get_file_data_length(src_file):
 
 
 @contextmanager
-def mock_recoleccion_data(test_case: TestCase):
-    votes_data = mock_votes_data(test_case)
-    authors_data = mock_authors_data(test_case)
-    legislators_data = mock_legislators_data(test_case)
-    projects_data = mock_projects_data(test_case)
+def mock_recoleccion_data(test_case: TestCase, use_existing_data: bool = False):
+    votes_data = mock_votes_data(test_case, use_existing_data)
+    authors_data = mock_authors_data(test_case, use_existing_data)
+    # legislators_data = mock_legislators_data(test_case, existing_data)
+    projects_data = mock_projects_data(test_case, use_existing_data)
     with mock_method(DataHandler, "_get_votes", return_value=votes_data):
         with mock_method(DataHandler, "_get_authors", return_value=authors_data):
-            with mock_method(DataHandler, "_get_legislators", return_value=legislators_data):
-                with mock_method(DataHandler, "_get_law_projects", return_value=projects_data):
-                    yield
+            # with mock_method(DataHandler, "_get_legislators", return_value=legislators_data):
+            with mock_method(DataHandler, "_get_law_projects", return_value=projects_data):
+                yield
 
 
-def mock_votes_data(test_case: TestCase) -> pd.DataFrame:
+def mock_votes_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFrame:
+    if use_existing_data:
+        return mock_vote_existing_data(test_case)
+    else:
+        return mock_new_votes_data(test_case)
+
+
+def mock_vote_existing_data(test_case: TestCase):
+    existing_data_columns = ["project_id", "person_id", "vote"]
+    selected_data = test_case.existing_votes[existing_data_columns]
+    limited_data = selected_data.head(test_case.NEW_VOTES)
+
+    other_columns = {
+        "date": "date",
+        "party": "str",
+    }
+    second_df: pd.DataFrame = create_fake_df(other_columns, n=test_case.NEW_VOTES, as_dict=False)
+    limited_data["party"] = second_df["party"]
+    limited_data["date"] = second_df["date"]
+    return limited_data
+
+
+def mock_new_votes_data(test_case: TestCase):
     MAX_VOTES = 5
-
     # Generate random votes for each project and person combination
     votes_data = []
     test_case.total_votes = 0
@@ -130,10 +151,25 @@ def mock_votes_data(test_case: TestCase) -> pd.DataFrame:
     second_df: pd.DataFrame = create_fake_df(columns, n=total_votes, as_dict=False)
     df["party"] = second_df["party"]
     df["date"] = second_df["date"]
+    test_case.existing_votes = df  # used for fitting tests
     return df
 
 
-def mock_authors_data(test_case: TestCase) -> pd.DataFrame:
+def mock_authors_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFrame:
+    if use_existing_data:
+        return mock_authors_existing_data(test_case)
+    else:
+        return mock_new_authors_data(test_case)
+
+
+def mock_authors_existing_data(test_case: TestCase):
+    existing_data_columns = ["project_id", "party"]
+    selected_data = test_case.existing_authors[existing_data_columns]
+    limited_data = selected_data.head(test_case.NEW_AUTHORS)
+    return limited_data
+
+
+def mock_new_authors_data(test_case: TestCase) -> pd.DataFrame:
     MAX_AUTHORS = 3
     authors_data = []
     for project_id in test_case.project_ids:
@@ -143,6 +179,7 @@ def mock_authors_data(test_case: TestCase) -> pd.DataFrame:
 
     # Create a dataframe from the generated data
     df = pd.DataFrame(authors_data, columns=["project_id", "party"])
+    test_case.existing_authors = df  # used for fitting tests
     return df
 
 
@@ -157,7 +194,18 @@ def mock_legislators_data(test_case: TestCase) -> pd.DataFrame:
     return df
 
 
-def mock_projects_data(test_case: TestCase) -> pd.DataFrame:
+def mock_projects_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFrame:
+    return mock_new_projects_data(test_case)  # there should be no problem with new projects
+
+
+def mock_projects_existing_data(test_case: TestCase):
+    existing_df_columns = ["project_title", "project_text", "project_year"]
+    selected_data = test_case.existing_projects[existing_df_columns]
+    limited_data = selected_data.head(test_case.NEW_PROJECTS)
+    return limited_data
+
+
+def mock_new_projects_data(test_case: TestCase) -> pd.DataFrame:
     total_projects = len(test_case.project_ids)
     columns = {
         "project_title": "short_text",
@@ -166,6 +214,7 @@ def mock_projects_data(test_case: TestCase) -> pd.DataFrame:
     }
     df: pd.DataFrame = create_fake_df(columns, n=total_projects, as_dict=False)
     df["project_id"] = test_case.project_ids
+    test_case.existing_projects = df  # used for fitting tests
     return df
 
 
