@@ -11,7 +11,7 @@ services:
         - ssh_private_key
       context: .
       dockerfile: ./compose/local/django/Dockerfile
-    image: vi-red-neuronal
+    image: vi-red-neuronal-django
     depends_on:
       - postgres.red_neuronal
     volumes:
@@ -29,7 +29,7 @@ services:
     build:
       context: .
       dockerfile: ./compose/local/postgres/Dockerfile
-    image: red_neuronal-postgres-local
+    image: vi-red-neuronal-postgres
     volumes:
       - local_postgres_data:/var/lib/postgresql/data
       - local_postgres_data_backups:/backups
@@ -38,9 +38,25 @@ services:
     ports:
       - "5434:5432"
 
+  scheduler.red_neuronal:
+    build:
+      context: .
+      dockerfile: ./compose/local/django/Dockerfile
+      secrets:
+        - ssh_private_key
+    image: vi-red-neuronal-scheduler
+    depends_on:
+      - postgres.red_neuronal
+    volumes:
+      - .:/app
+    env_file:
+      - ./.envs/.local/.django
+      - ./.envs/.local/.postgres
+    command: /start_scheduler
+
 networks:
   default:
-      name: local_network
+      name: vi-network
 
 secrets:
   ssh_private_key:

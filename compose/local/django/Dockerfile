@@ -13,4 +13,8 @@ COPY ./compose/local/django/start /start
 RUN sed -i 's/\r//' /start
 RUN chmod +x /start
 
+COPY ./compose/local/django/start_scheduler /start_scheduler
+RUN sed -i 's/\r//' /start_scheduler
+RUN chmod +x /start_scheduler
+
 ENTRYPOINT ["/start"]
