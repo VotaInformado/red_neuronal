@@ -85,7 +85,24 @@ class DataHandler:
 
 
 class TrainDataHandler(DataHandler):
-    pass
+    def __init__(self, starting_date: str = None):
+        self.starting_date = starting_date
+
+    def _get_filters_for_endpoint(self, endpoint: str, date: str) -> dict:
+        if endpoint == settings.VOTES_DATA_ENDPOINT:
+            filters = {"date__gte": date}
+        elif endpoint == settings.PROJECTS_DATA_ENDPOINT:
+            filters = {"publication_date__gte": date}
+        elif endpoint == settings.AUTHORS_DATA_ENDPOINT:
+            filters = {}  # filters here are not needed
+        return filters
+
+    def _get_data_from_source(self, endpoint: str) -> pd.DataFrame:
+        if self.starting_date:
+            filters = self._get_filters_for_endpoint(endpoint)
+        else:
+            filters = {}
+        return super()._get_data_from_source(endpoint, filters)
 
 
 class FitDataHandler(DataHandler):

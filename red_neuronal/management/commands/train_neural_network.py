@@ -10,8 +10,12 @@ from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
 
 
 class Command(BaseCommand):
+    def add_arguments(self, parser):
+        parser.add_argument('--starting-date', nargs='+', type=str, help='Starting date (YYYY-MM-DD)')
+
     def handle(self, *args, **options):
-        data_handler = TrainDataHandler()
+        starting_date = options.get('starting_date')
+        data_handler = TrainDataHandler(starting_date=starting_date)
         df: pd.DataFrame = data_handler.get_data()
         neural_network = NeuralNetwork()
         neural_network.train(df)

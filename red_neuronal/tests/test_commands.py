@@ -27,9 +27,15 @@ class TrainingCommandTestcase(CustomTestCase):
                 return False
         return True
 
-    def test_neural_network_training_command(self):
+    def test_neural_network_training_command_without_filters(self):
         with mck.mock_recoleccion_data(self):
             call_command("train_neural_network")
+        self.assertTrue(self.files_created())
+
+    def test_neural_network_training_command_with_filters(self):
+        STARTING_DATE = "2020-01-01"
+        with mck.mock_recoleccion_data(self):
+            call_command("train_neural_network", f"--starting-date={STARTING_DATE}")
         self.assertTrue(self.files_created())
 
     def test_neural_network_fit_command(self):
