@@ -9,8 +9,10 @@ https://docs.djangoproject.com/en/4.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.2/ref/settings/
 """
-
+import os
 from pathlib import Path
+
+config = os.environ
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -134,3 +136,9 @@ LAST_FETCHED_DATA_DIR = f"{DATA_HANDLER_FILES_DIR}/last_fetched_date.txt"
 
 # Recoleccion endpoints
 FITTING_DATA_ENDPOINT = ""
+
+VOTES_DATA_ENDPOINT = config.get("VOTES_DATA_ENDPOINT", "")
+LEGISLATORS_DATA_ENDPOINT = config.get("LEGISLATORS_DATA_ENDPOINT", "")
+PROJECTS_DATA_ENDPOINT = config.get("PROJECTS_DATA_ENDPOINT", "")
+AUTHORS_DATA_ENDPOINT = config.get("AUTHORS_DATA_ENDPOINT", "")
+DEFAULT_PAGE_SIZE = 1000

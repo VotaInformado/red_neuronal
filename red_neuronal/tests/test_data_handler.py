@@ -14,6 +14,30 @@ from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.components.data_handler import FitDataHandler, TrainDataHandler
 
 
+class DataRetrievalTestCase(CustomTestCase):
+    def test_retrieving_paginated_data(self):
+        settings.TOTAL_RESULTS = settings.MAX_TOTAL_PROJECTS = 3000
+        settings.MAX_TOTAL_PERSONS = 100
+        settings.PAGE_SIZE = 1000
+        settings.total_votes = 0
+        mck.create_person_ids(settings)
+        mck.create_project_ids(settings)
+        with mck.mock_method_paginated_data_retrieval(self):
+            df: pd.DataFrame = TrainDataHandler()._get_votes()
+        self.assertEqual(len(df), settings.TOTAL_RESULTS)
+
+    def test_retrieving_non_paginated_data(self):
+        settings.TOTAL_RESULTS = settings.MAX_TOTAL_PROJECTS = 3000
+        settings.MAX_TOTAL_PERSONS = 100
+        settings.PAGE_SIZE = 1000
+        settings.total_votes = 0
+        mck.create_person_ids(settings)
+        mck.create_project_ids(settings)
+        with mck.mock_method_paginated_data_retrieval(self):
+            df: pd.DataFrame = TrainDataHandler()._get_votes()
+        self.assertEqual(len(df), settings.TOTAL_RESULTS)
+
+
 class TrainDataHandlerTestCase(CustomTestCase):
     def test_authors_flattening(self):
         # Checks that author compression (grouped by [project_id, person_id]) works correctly
@@ -35,6 +59,7 @@ class TrainDataHandlerTestCase(CustomTestCase):
         self.MAX_TOTAL_PROJECTS = 100  # there could be repetitions in the generated data
         mck.create_person_ids(self)
         mck.create_project_ids(self)
+        self.total_votes = 0
         with mck.mock_recoleccion_data(self):
             merged_df: pd.DataFrame = TrainDataHandler().get_data()
         expected_df_length = self.total_votes
@@ -88,6 +113,7 @@ class FitDataHandlerTestCase(CustomTestCase):
 
     def test_retrieving_fitting_data(self):
         self.train_neural_network()
+        self.total_votes = 0
         with mck.mock_recoleccion_data(self):
             merged_df: pd.DataFrame = FitDataHandler().get_data()
         expected_df_length = self.total_votes

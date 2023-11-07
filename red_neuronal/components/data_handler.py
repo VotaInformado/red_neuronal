@@ -3,9 +3,11 @@ import pandas as pd
 from datetime import datetime
 from django.conf import settings
 import os
+from tqdm import tqdm
+from requests.models import Response
+import logging
 
-# Project
-from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
+logger = logging.getLogger(__name__)
 
 
 class DataHandler:
@@ -20,10 +22,51 @@ class DataHandler:
         return final_df
 
     def _get_data_from_source(self, endpoint: str, filters={}) -> pd.DataFrame:
-        response = self.session.get(endpoint, data=filters)
+        page_size_filter = {"page_size": settings.DEFAULT_PAGE_SIZE}
+        filters.update(page_size_filter)
+        base_response = self.session.get(url=endpoint, data=filters)
+        if self._is_paginated_response(base_response):
+            return self._get_paginated_data(base_response)
+        return self._get_non_paginated_data(base_response)
+
+    def _is_paginated_response(self, response: Response) -> bool:
+        PAGINATED_RESPONSE_KEYS = ["next", "previous", "results", "count"]
+        response_json = response.json()
+        response_keys = response_json.keys()
+        return sorted(response_keys) == sorted(PAGINATED_RESPONSE_KEYS)
+
+    def _get_non_paginated_data(self, endpoint: str, filters: dict) -> pd.DataFrame:
+        response = self.session.get(url=endpoint, data=filters)
         raw_data = response.json()
         raw_df: pd.DataFrame = pd.DataFrame(raw_data)
         return raw_df
+
+    def _calculate_loops_needed(self, total_results: int) -> int:
+        # We need this only to be able to use tqdm. In long responses, tqdm is useful to see the progress.
+        loops_needed = total_results // settings.DEFAULT_PAGE_SIZE
+        if total_results % settings.DEFAULT_PAGE_SIZE != 0:
+            # If there is a remainder, we need to do one more loop
+            loops_needed += 1
+        return loops_needed
+
+    def _get_paginated_data(self, base_response: Response) -> pd.DataFrame:
+        response_json = base_response.json()
+        received_data = response_json["results"]
+        total_results = response_json["count"]
+        loops_needed = self._calculate_loops_needed(total_results)
+        if response_json["next"] is None:
+            received_data = response_json["results"]
+        else:
+            for _ in tqdm(range(loops_needed)):
+                endpoint = response_json["next"]
+                if endpoint is None:
+                    break
+                response = self.session.get(url=endpoint)
+                response_json = response.json()
+                response_results = response_json["results"]
+                received_data.extend(response_results)
+        df: pd.DataFrame = pd.DataFrame(received_data)
+        return df
 
     def _get_legislators(self):
         url = settings.LEGISLATORS_DATA_ENDPOINT
