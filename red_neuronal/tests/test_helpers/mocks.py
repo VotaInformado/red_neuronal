@@ -302,7 +302,7 @@ def _get_next_page_url(url, next_page):
     # the page in the url is page={page_number}&
     # we need to replace the current page with the next one
     if "page=" not in url:  # first page url
-        next_page_url = url[:-1]  # remove the last /
+        next_page_url = url[:-1] if url.endswith("/") else url  # remove the last /
         next_page_url += f"?page=2&page_size={settings.DEFAULT_PAGE_SIZE}"
     else:
         next_page_url = url.replace(f"page={next_page - 1}", f"page={next_page}")
