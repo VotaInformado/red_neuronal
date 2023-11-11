@@ -48,7 +48,7 @@ class TrainDataHandlerTestCase(CustomTestCase):
             for project_id in self.project_ids:
                 df_info.append([project_id, party])
 
-        df: pd.DataFrame = pd.DataFrame(df_info, columns=["project_id", "party"])
+        df: pd.DataFrame = pd.DataFrame(df_info, columns=["project", "party"])
         data_handler = TrainDataHandler()
         flattened_df = data_handler._flatten_party_authors(df)
         for _, row in flattened_df.iterrows():

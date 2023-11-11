@@ -126,7 +126,7 @@ def mock_votes_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFram
 
 def mock_vote_existing_data(test_case: TestCase):
     new_votes = getattr(test_case, "NEW_VOTES", DEFAULT_NEW_OBJECTS)
-    existing_data_columns = ["project_id", "person_id", "vote"]
+    existing_data_columns = ["project", "person", "vote"]
     selected_data = test_case.existing_votes[existing_data_columns]
     limited_data = selected_data.head(new_votes)
 
@@ -155,7 +155,7 @@ def mock_new_votes_data(test_case: TestCase, total_results=None):
                 test_case.total_votes += 1
 
     # Create a dataframe from the generated data
-    df = pd.DataFrame(votes_data, columns=["project_id", "person_id", "vote"])
+    df = pd.DataFrame(votes_data, columns=["project", "person", "vote"])
 
     total_votes = len(votes_data)
 
@@ -179,7 +179,7 @@ def mock_authors_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFr
 
 def mock_authors_existing_data(test_case: TestCase):
     new_authors = getattr(test_case, "NEW_AUTHORS", DEFAULT_NEW_OBJECTS)
-    existing_data_columns = ["project_id", "party"]
+    existing_data_columns = ["project", "party"]
     selected_data = test_case.existing_authors[existing_data_columns]
     limited_data = selected_data.head(new_authors)
     return limited_data
@@ -199,7 +199,7 @@ def mock_new_authors_data(test_case: TestCase, total_results: int = None) -> pd.
             authors_data.append([project_id, party])
 
     # Create a dataframe from the generated data
-    df = pd.DataFrame(authors_data, columns=["project_id", "party"])
+    df = pd.DataFrame(authors_data, columns=["project", "party"])
     test_case.existing_authors = df  # used for fitting tests
     return df
 
@@ -211,7 +211,7 @@ def mock_legislators_data(test_case: TestCase) -> pd.DataFrame:
         "person_full_name": "str",
     }
     df: pd.DataFrame = create_fake_df(columns, n=n, as_dict=False)
-    df["person_id"] = test_case.person_ids
+    df["person"] = test_case.person_ids
     return df
 
 
@@ -235,21 +235,21 @@ def mock_new_projects_data(test_case: TestCase, total_project_len: int = None) -
         "project_year": "year",
     }
     df: pd.DataFrame = create_fake_df(columns, n=total_project_len, as_dict=False)
-    df["project_id"] = test_case.project_ids
+    df["project"] = test_case.project_ids
     test_case.existing_projects = df  # used for fitting tests
     return df
 
 
 def create_project_ids(test_case: TestCase):
-    columns = {"project_id": "int"}
+    columns = {"project": "int"}
     df: pd.DataFrame = create_fake_df(columns, n=test_case.MAX_TOTAL_PROJECTS, as_dict=False)
-    test_case.project_ids = list(df["project_id"].unique())
+    test_case.project_ids = list(df["project"].unique())
 
 
 def create_person_ids(test_case: TestCase):
-    columns = {"person_id": "int"}
+    columns = {"person": "int"}
     df: pd.DataFrame = create_fake_df(columns, n=test_case.MAX_TOTAL_PERSONS, as_dict=False)
-    test_case.person_ids = list(df["person_id"].unique())
+    test_case.person_ids = list(df["person"].unique())
 
 
 def create_fake_endpoints_data(test_case: TestCase):
@@ -320,7 +320,7 @@ def _get_request_results(url, paginated_response):
     return data
 
 
-def _mock_method_paginated_data_retrieval(url, data=None):
+def _mock_method_paginated_data_retrieval(url, params=None):
     current_page = _get_current_page(url)
     next_page = _calculate_next_page(current_page)
     next_page_url = _get_next_page_url(url, next_page)

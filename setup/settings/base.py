@@ -142,3 +142,38 @@ LEGISLATORS_DATA_ENDPOINT = config.get("LEGISLATORS_DATA_ENDPOINT", "")
 PROJECTS_DATA_ENDPOINT = config.get("PROJECTS_DATA_ENDPOINT", "")
 AUTHORS_DATA_ENDPOINT = config.get("AUTHORS_DATA_ENDPOINT", "")
 DEFAULT_PAGE_SIZE = 1000
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {
+        "verbose": {"format": "%(levelname)s %(asctime)s %(module)s " "%(process)d %(thread)d %(message)s"},
+        "colored_formatter": {
+            "()": "colorlog.ColoredFormatter",
+            "format": "\n%(log_color)s%(levelname)-8s%(white)s%(message)s",
+            "log_colors": {
+                "DEBUG": "bold_black",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red",
+            },
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "colored_formatter",
+        },
+    },
+    "loggers": {
+        "red_neuronal": {
+            "level": "DEBUG",
+            "handlers": ["console"],
+            "propagate": True,
+        },
+    },
+}
+

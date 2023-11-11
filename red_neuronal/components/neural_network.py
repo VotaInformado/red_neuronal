@@ -1,12 +1,9 @@
 import os
-
-from sklearn.utils import shuffle
 import numpy as np
 from django.conf import settings
 
 # Sklearn
 from sklearn.metrics import ConfusionMatrixDisplay
-from sklearn.feature_extraction import DictVectorizer
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
@@ -25,6 +22,7 @@ from red_neuronal.components.encoder import PartiesEncoder, LegislatorsEncoder, 
 # Project
 from red_neuronal.components.embedding import UniversalEmbedding
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
+from red_neuronal.utils.logger import logger
 
 
 import tensorflow as tf
@@ -43,7 +41,7 @@ class NeuralNetwork:
     def __init__(self):
         # TODO: comentarios: no se usa el partido del votante, tal vez podríamos usarlo
         # Lo que se necesita es un DataFrame con las columnas:
-        # - project_id
+        # - project: id del proyecto
         # - project_title
         # - project_text
         # - voter_id
@@ -80,6 +78,17 @@ class NeuralNetwork:
         self._fit_model()
         self._save_model()
 
+    def predict(self, df: pd.DataFrame):
+        """Predicts the votes for the given data"""
+        self._load_model()
+        self.df: pd.DataFrame = self._normalize_years(df)
+        self._load_encoders()
+        self._generate_inputs_for_prediction()
+        self._create_embeddings_for_prediction()
+        predictions = self._predict()
+        return predictions
+        # self._evaluate()
+
     def _load_encoders(self):
         self.votes_encoder = VotesEncoder(is_training=False)
         self.legislators_encoder = LegislatorsEncoder(is_training=False)
@@ -97,13 +106,13 @@ class NeuralNetwork:
 
     def _split_dataframe(self):
         df = self.df
-        laws = df["project_id"].unique()
+        laws = df["project"].unique()
         laws_train, laws_test = train_test_split(laws, train_size=0.7)
         laws_val, laws_test = train_test_split(laws_test, train_size=0.66)
 
-        self.df_train = df.loc[df["project_id"].isin(laws_train)]
-        self.df_val = df.loc[df["project_id"].isin(laws_val)]
-        self.df_test = df.loc[df["project_id"].isin(laws_test)]
+        self.df_train = df.loc[df["project"].isin(laws_train)]
+        self.df_val = df.loc[df["project"].isin(laws_val)]
+        self.df_test = df.loc[df["project"].isin(laws_test)]
 
         self.y_train = self.df_train["vote"]
         self.y_val = self.df_val["vote"]
@@ -139,6 +148,7 @@ class NeuralNetwork:
         self.legislators_test = self._get_legislators_input(self.df_test)
 
         self.authors_train = self._get_authors_input(self.df_train)
+        self.authors_train = self.authors_train.applymap(lambda x: int(bool(x)))
         self.authors_val = self._get_authors_input(self.df_val)
         self.authors_test = self._get_authors_input(self.df_test)
 
@@ -146,22 +156,54 @@ class NeuralNetwork:
         self.year_val = self.df_val["project_year_cont"]
         self.year_test = self.df_test["project_year_cont"]
 
+    def _generate_inputs_for_prediction(self):
+        self.legislators = self._get_legislators_input(self.df)
+        self.authors = self._get_authors_input(self.df)
+        self.authors = self.authors.applymap(lambda x: int(bool(x)))
+        self.years = self.df["project_year_cont"]
+
     def _create_embeddings(self):
         self._create_text_embeddings()
         self._create_title_embeddings()
 
+    def _create_embeddings_for_prediction(self):
+        self._create_text_embeddings_for_prediction()
+        self._create_title_embeddings_for_prediction()
+
     def _get_embeddings(self, df: pd.DataFrame, embeddings: pd.DataFrame):
-        embeddings = pd.DataFrame.merge(df["project_id"], embeddings, how="left", on="project_id")
-        embeddings.drop(columns=["project_id"], inplace=True)
+        embeddings = pd.DataFrame.merge(df["project"], embeddings, how="left", on="project")
+        embeddings.drop(columns=["project"], inplace=True)
         return embeddings
 
-    def _create_text_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_text"]]
+    def _create_text_embeddings_for_prediction(self):
+        law_and_text = self.df.drop_duplicates(subset=["project"])[["project", "project_text"]]
         law_and_text["project_text"] = law_and_text["project_text"].map(
             lambda x: self.embedder.create_law_text_embedding(x)
         )
         text_and_embedding = pd.DataFrame(
-            data=law_and_text["project_text"].tolist(), index=law_and_text["project_id"]
+            data=law_and_text["project_text"].tolist(), index=law_and_text["project"]
+        ).reset_index()
+
+        self.texts = self._get_embeddings(self.df, text_and_embedding)
+
+    def _create_title_embeddings_for_prediction(self):
+        law_and_text = self.df.drop_duplicates(subset=["project"])[["project", "project_title"]]
+        law_and_text["project_title"] = law_and_text["project_title"].map(
+            lambda x: self.embedder.create_law_text_embedding(x)
+        )
+        title_and_embedding = pd.DataFrame(
+            data=law_and_text["project_title"].tolist(), index=law_and_text["project"]
+        ).reset_index()
+
+        self.titles = self._get_embeddings(self.df, title_and_embedding)
+
+    def _create_text_embeddings(self):
+        law_and_text = self.df.drop_duplicates(subset=["project"])[["project", "project_text"]]
+        law_and_text["project_text"] = law_and_text["project_text"].map(
+            lambda x: self.embedder.create_law_text_embedding(x)
+        )
+        text_and_embedding = pd.DataFrame(
+            data=law_and_text["project_text"].tolist(), index=law_and_text["project"]
         ).reset_index()
 
         self.texts_train = self._get_embeddings(self.df_train, text_and_embedding)
@@ -169,12 +211,12 @@ class NeuralNetwork:
         self.texts_test = self._get_embeddings(self.df_test, text_and_embedding)
 
     def _create_title_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_title"]]
+        law_and_text = self.df.drop_duplicates(subset=["project"])[["project", "project_title"]]
         law_and_text["project_title"] = law_and_text["project_title"].map(
             lambda x: self.embedder.create_law_text_embedding(x)
         )
         title_and_embedding = pd.DataFrame(
-            data=law_and_text["project_title"].tolist(), index=law_and_text["project_id"]
+            data=law_and_text["project_title"].tolist(), index=law_and_text["project"]
         ).reset_index()
 
         self.titles_train = self._get_embeddings(self.df_train, title_and_embedding)
@@ -185,7 +227,10 @@ class NeuralNetwork:
         self.law_texts_input_dim = self.texts_train.shape[1]
         self.law_titles_input_dim = self.titles_train.shape[1]
         self.legislators_input_dim = len(self.legislators_encoder.get_feature_names())
-        self.authors_input_dim = len(self.parties_encoder.get_feature_names())
+        party_categories = len(self.parties_encoder.get_feature_names())
+        max_parties_value = self.authors_train.max().max()
+        self.authors_input_dim = int(max(party_categories, max_parties_value))
+        self.authors_input_dim = party_categories
 
     def _create_network_inputs(self):
         self.law_texts_input = keras.Input(
@@ -303,6 +348,7 @@ class NeuralNetwork:
             json_file.write(model_json)
         os.makedirs(os.path.dirname(self.WEIGHTS_SAVING_DIR), exist_ok=True)
         self.model.save_weights(self.WEIGHTS_SAVING_DIR)
+        logger.info("Model saved successfully")
 
     def _load_model(self):
         if self.model is not None:
@@ -325,11 +371,11 @@ class NeuralNetwork:
     def _predict(self):
         self.prediction = self.model.predict(
             {
-                "authors": self.authors_test,
-                "law_texts": self.texts_test,
-                "legislators": self.legislators_test,
-                "years": self.year_test,
-                "law_titles": self.titles_test,
+                "authors": self.authors,
+                "legislators": self.legislators,
+                "years": self.years,
+                "law_texts": self.texts,
+                "law_titles": self.titles,
             },
             batch_size=2,
         )
@@ -342,6 +388,7 @@ class NeuralNetwork:
         plt.bar(freq.keys(), freq.values())
         plt.title("Cantidad de votos predecidos por categoría")
         plt.show()
+        return vote_predictions
 
     def _evaluate(self):
         # Make predictions on the validation data

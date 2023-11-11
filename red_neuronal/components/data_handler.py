@@ -4,14 +4,22 @@ from datetime import datetime
 from django.conf import settings
 import os
 from tqdm import tqdm
+from rest_framework import status
 from requests.models import Response
-import logging
 
-logger = logging.getLogger(__name__)
+# Project
+from red_neuronal.utils.logger import logger
 
 
 class DataHandler:
     session = requests.Session()
+
+    def get(self, endpoint, filters={}):
+        ACCEPTABLE_RESPONSES = [status.HTTP_200_OK, status.HTTP_201_CREATED]
+        response = self.session.get(url=endpoint, params=filters)
+        if response.status_code not in ACCEPTABLE_RESPONSES:
+            raise Exception(f"Error fetching data from {endpoint}. Response: {response}")
+        return response
 
     def get_data(self):
         votes = self._get_votes()
@@ -24,7 +32,9 @@ class DataHandler:
     def _get_data_from_source(self, endpoint: str, filters={}) -> pd.DataFrame:
         page_size_filter = {"page_size": settings.DEFAULT_PAGE_SIZE}
         filters.update(page_size_filter)
-        base_response = self.session.get(url=endpoint, data=filters)
+        logger.info(f"Making first request to {endpoint}...")
+        logger.info(f"Using filters: {filters}")
+        base_response = self.get(endpoint=endpoint, filters=filters)
         if self._is_paginated_response(base_response):
             return self._get_paginated_data(base_response)
         return self._get_non_paginated_data(base_response)
@@ -32,11 +42,16 @@ class DataHandler:
     def _is_paginated_response(self, response: Response) -> bool:
         PAGINATED_RESPONSE_KEYS = ["next", "previous", "results", "count"]
         response_json = response.json()
-        response_keys = response_json.keys()
-        return sorted(response_keys) == sorted(PAGINATED_RESPONSE_KEYS)
+        if not isinstance(response_json, dict):
+            is_paginated = False
+        else:
+            response_keys = response_json.keys()
+            is_paginated = sorted(response_keys) == sorted(PAGINATED_RESPONSE_KEYS)
+            logger.info(f"Response is paginated: {is_paginated}")
+        return is_paginated
 
     def _get_non_paginated_data(self, endpoint: str, filters: dict) -> pd.DataFrame:
-        response = self.session.get(url=endpoint, data=filters)
+        response = self.get(endpoint=endpoint, filters=filters)
         raw_data = response.json()
         raw_df: pd.DataFrame = pd.DataFrame(raw_data)
         return raw_df
@@ -50,10 +65,12 @@ class DataHandler:
         return loops_needed
 
     def _get_paginated_data(self, base_response: Response) -> pd.DataFrame:
+        logger.info("Response is paginated, getting all data...")
         response_json = base_response.json()
         received_data = response_json["results"]
         total_results = response_json["count"]
         loops_needed = self._calculate_loops_needed(total_results)
+        logger.info(f"{loops_needed} loops will be needed to fetch {total_results} results")
         if response_json["next"] is None:
             received_data = response_json["results"]
         else:
@@ -61,10 +78,11 @@ class DataHandler:
                 endpoint = response_json["next"]
                 if endpoint is None:
                     break
-                response = self.session.get(url=endpoint)
+                response = self.get(endpoint)
                 response_json = response.json()
                 response_results = response_json["results"]
                 received_data.extend(response_results)
+        logger.info("All data received, creating DataFrame...")
         df: pd.DataFrame = pd.DataFrame(received_data)
         return df
 
@@ -83,34 +101,40 @@ class DataHandler:
 
     def _get_law_projects(self):
         url = settings.PROJECTS_DATA_ENDPOINT
-        # Expected columns: project_id, project_title, project_text, project_year
+        # Expected columns: project, project_title, project_text, project_year
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
 
     def _get_authors(self):
         url = settings.AUTHORS_DATA_ENDPOINT
-        # Expected columns: project_id, person_id, party
+        # Expected columns: project, person_id, party
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
 
     def _merge_data(self, votes, authors, law_projects):
-        # Result DF: voter_id, vote, project_id, project_title, project_text, project_year, party_authors
-        votes_and_projects = pd.merge(votes, law_projects, on="project_id")
+        # TODO: convertir project de law_projects a int
+        # Result DF: voter_id, vote, project, project_title, project_text, project_year, party_authors
+        # we remove all votes without project
+
+        votes = votes.dropna(subset=["project"])
+        votes["project"] = votes["project"].astype(int)
+        law_projects["project"] = law_projects["project"].astype(int)
+        votes_and_projects = pd.merge(votes, law_projects, on="project")
         votes_and_projects = votes_and_projects.drop(["date"], axis=1)
-        votes_and_projects = votes_and_projects.rename(columns={"person_id": "voter_id", "party": "voter_party"})
+        votes_and_projects = votes_and_projects.rename(columns={"person": "voter_id", "party": "voter_party"})
         authors = self._flatten_party_authors(authors)
-        votes_projects_and_authors = pd.merge(votes_and_projects, authors, on="project_id")
+        votes_projects_and_authors = pd.merge(votes_and_projects, authors, on="project")
         # Es un poco complicado mergear para tener el nombre de legisladores, y no aporta nada, por ahora, queda así
         # TODO: ver si el encoder puede recibir ids en vez de nombres
         final_df = votes_projects_and_authors.drop(["voter_party"], axis=1)  # La red neuronal no lo está usando
         return final_df
 
     def _flatten_party_authors(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = df.groupby(["project_id"])["party"].apply(lambda x: ";".join(map(str, x))).reset_index()
+        df = df.groupby(["project"])["party"].apply(lambda x: ";".join(map(str, x))).reset_index()
         df.rename(columns={"party": "party_authors"}, inplace=True)
-        df = df.drop_duplicates(subset=["project_id"])
+        df = df.drop_duplicates(subset=["project"])
         return df
 
     def _get_last_fetched_date(self):
@@ -131,11 +155,12 @@ class TrainDataHandler(DataHandler):
     def __init__(self, starting_date: str = None):
         self.starting_date = starting_date
 
-    def _get_filters_for_endpoint(self, endpoint: str, date: str) -> dict:
+    def _get_filters_for_endpoint(self, endpoint: str) -> dict:
+        # Only used when self.starting_date is not None
         if endpoint == settings.VOTES_DATA_ENDPOINT:
-            filters = {"date__gte": date}
+            filters = {"date__gte": self.starting_date}
         elif endpoint == settings.PROJECTS_DATA_ENDPOINT:
-            filters = {"publication_date__gte": date}
+            filters = {"publication_date__gte": self.starting_date}
         elif endpoint == settings.AUTHORS_DATA_ENDPOINT:
             filters = {}  # filters here are not needed
         return filters

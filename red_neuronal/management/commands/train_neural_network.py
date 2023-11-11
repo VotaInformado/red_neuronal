@@ -7,6 +7,7 @@ from django.core.management.base import BaseCommand
 from red_neuronal.components.data_handler import TrainDataHandler
 from red_neuronal.components.neural_network import NeuralNetwork
 from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
+from red_neuronal.utils.logger import logger
 
 
 class Command(BaseCommand):
@@ -16,7 +17,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         starting_date = options.get('starting_date')
         data_handler = TrainDataHandler(starting_date=starting_date)
+        logger.info("Retrieving data...")
         df: pd.DataFrame = data_handler.get_data()
         neural_network = NeuralNetwork()
+        logger.info("The DataFrame has been created. Training neural network...")
         neural_network.train(df)
+        logger.info("Neural network trained. Saving last fetch date...")
         data_handler._update_last_fetched_date()
