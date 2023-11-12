@@ -1,11 +1,11 @@
 import random
 import pandas as pd
-from django.conf import settings
 
 # Project
 from red_neuronal.tests.test_helpers.test_case import CustomTestCase
 import red_neuronal.tests.test_helpers.mocks as mck
-from red_neuronal.components.neural_network import NeuralNetwork
+from red_neuronal.components.neural_network.trainer import Trainer
+from red_neuronal.components.neural_network.predictor import Predictor
 from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import UntrainedNeuralNetwork
 from red_neuronal.utils.enums import VoteChoices
@@ -48,39 +48,40 @@ class NeuralNetworkTestCase(CustomTestCase):
 
     def test_neural_network_training(self):
         df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        neural_network = NeuralNetwork()
-        neural_network.train(df)
+        trainer = Trainer()
+        trainer.train(df)
 
     def test_neural_network_fit_with_in_memory_model(self):
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
         fit_df: pd.DataFrame = self.create_fit_df(train_df)
-        neural_network = NeuralNetwork()
-        neural_network.train(train_df)
-        neural_network.fit(fit_df)
+        trainer = Trainer()
+        trainer.train(train_df)
+        trainer.fit(fit_df)
 
     def test_neural_network_fit_with_persisted_model(self):
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
         fit_df: pd.DataFrame = self.create_fit_df(train_df)
-        neural_network = NeuralNetwork()
-        neural_network.train(train_df)
-        neural_network = NeuralNetwork()
-        neural_network.fit(fit_df)
+        trainer = Trainer()
+        trainer.train(train_df)
+        trainer = Trainer()
+        trainer.fit(fit_df)
 
     def test_neural_network_fitting_without_training_raises_exception(self):
         df: pd.DataFrame = create_fake_df(self.COLUMNS, n=100, as_dict=False)
-        neural_network = NeuralNetwork()
+        trainer = Trainer()
         with self.assertRaises(UntrainedNeuralNetwork):
-            neural_network.fit(df)
+            trainer.fit(df)
 
     def test_legislator_neural_network_prediction(self):
         DF_LEN = 1
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        neural_network = NeuralNetwork()
-        neural_network.train(train_df)
+        trainer = Trainer()
+        trainer.train(train_df)
         predict_columns = self.COLUMNS.copy()
         predict_columns.pop("vote")
         prediction_df: pd.DataFrame = self.create_prediction_df(train_df, DF_LEN)
-        predictions = neural_network.predict(prediction_df)
+        predictor = Predictor()
+        predictions = predictor.predict(prediction_df)
         self.assertEqual(len(predictions), DF_LEN)
         prediction = predictions[0]
         possible_predictions = [choice.value for choice in VoteChoices]
@@ -89,12 +90,13 @@ class NeuralNetworkTestCase(CustomTestCase):
     def test_project_neural_network_prediction(self):
         DF_LEN = 72
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        neural_network = NeuralNetwork()
-        neural_network.train(train_df)
+        trainer = Trainer()
+        trainer.train(train_df)
         predict_columns = self.COLUMNS.copy()
         predict_columns.pop("vote")
         prediction_df: pd.DataFrame = self.create_prediction_df(train_df, DF_LEN)
-        predictions = neural_network.predict(prediction_df)
+        predictor = Predictor()
+        predictions = predictor.predict(prediction_df)
         self.assertEqual(len(predictions), DF_LEN)
         possible_predictions = [choice.value for choice in VoteChoices]
         for prediction in predictions:
@@ -103,14 +105,15 @@ class NeuralNetworkTestCase(CustomTestCase):
     def test_prediction_after_fit(self):
         DF_LEN = 1
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        neural_network = NeuralNetwork()
-        neural_network.train(train_df)
+        trainer = Trainer()
+        trainer.train(train_df)
         predict_columns = self.COLUMNS.copy()
         predict_columns.pop("vote")
         fit_df: pd.DataFrame = self.create_fit_df(train_df)
-        neural_network.fit(fit_df)
+        trainer.fit(fit_df)
         prediction_df: pd.DataFrame = self.create_prediction_df(train_df, DF_LEN)
-        predictions = neural_network.predict(prediction_df)
+        predictor = Predictor()
+        predictions = predictor.predict(prediction_df)
         self.assertEqual(len(predictions), DF_LEN)
         prediction = predictions[0]
         possible_predictions = [choice.value for choice in VoteChoices]

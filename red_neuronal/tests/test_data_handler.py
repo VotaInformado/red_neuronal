@@ -8,7 +8,7 @@ from django.core.management import call_command
 
 # Project
 from red_neuronal.tests.test_helpers.test_case import CustomTestCase
-from red_neuronal.components.neural_network import NeuralNetwork
+from red_neuronal.components.neural_network.trainer import Trainer
 import red_neuronal.tests.test_helpers.mocks as mck
 from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.components.data_handler import FitDataHandler, TrainDataHandler
@@ -74,8 +74,8 @@ class TrainDataHandlerTestCase(CustomTestCase):
         mck.create_project_ids(self)
         with mck.mock_recoleccion_data(self):
             merged_df: pd.DataFrame = TrainDataHandler().get_data()
-        neural_network = NeuralNetwork()
-        neural_network.train(merged_df)
+        trainer = Trainer()
+        trainer.train(merged_df)
         # We just want to check that the training does not fail
 
     def test_neural_network_cannot_train_with_incorrect_merged_data(self):
@@ -89,9 +89,9 @@ class TrainDataHandlerTestCase(CustomTestCase):
         column_to_drop = random.choice(merged_df.columns)
         print(f"Column to drop: {column_to_drop}")
         merged_df = merged_df.drop(column_to_drop, axis=1)
-        neural_network = NeuralNetwork()
+        trainer = Trainer()
         with self.assertRaises(Exception) as context:
-            neural_network.train(merged_df)
+            trainer.train(merged_df)
         self.assertIn(type(context.exception), POSSIBLE_EXPECTED_EXCEPTIONS)
 
 
@@ -128,8 +128,8 @@ class FitDataHandlerTestCase(CustomTestCase):
         self.NEW_AUTHORS = 100
         with mck.mock_recoleccion_data(self, use_existing_data=True):
             merged_df: pd.DataFrame = FitDataHandler().get_data()
-        neural_network = NeuralNetwork()
-        neural_network.fit(merged_df)
+        trainer = Trainer()
+        trainer.fit(merged_df)
         # We just want to check that the training does not fail
 
     def test_neural_network_cannot_be_fit_with_incorrect_merged_data(self):
@@ -142,7 +142,7 @@ class FitDataHandlerTestCase(CustomTestCase):
             merged_df: pd.DataFrame = FitDataHandler().get_data()
         column_to_drop = random.choice(merged_df.columns)
         merged_df = merged_df.drop(column_to_drop, axis=1)
-        neural_network = NeuralNetwork()
+        trainer = Trainer()
         with self.assertRaises(Exception) as context:
-            neural_network.fit(merged_df)
+            trainer.fit(merged_df)
         self.assertIn(type(context.exception), POSSIBLE_EXPECTED_EXCEPTIONS)
