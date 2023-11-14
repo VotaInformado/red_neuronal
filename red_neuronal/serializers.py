@@ -5,8 +5,7 @@ from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
 # Expected columns: project, person, party
 class IndividualLegislatorSerializer(serializers.Serializer):
     # project = serializers.CharField()
-    person = serializers.CharField()
-    party = serializers.CharField()
+    person = serializers.IntegerField()
 
 
 class ProjectSerializer(serializers.Serializer):
@@ -26,14 +25,12 @@ class LegislatorPredictionRequest(serializers.Serializer):
     authors = serializers.ListField(child=AuthorSerializer())
 
 
-class LegislatorPredictionResponse(serializers.Serializer):
-    predicted_vote = serializers.CharField()
+class PredictionResponse(serializers.Serializer):
+    legislator = serializers.IntegerField()
+    vote = serializers.CharField()
 
 
 class ProjectPredictionRequest(serializers.Serializer):
     legislators = serializers.ListField(child=IndividualLegislatorSerializer())
     project = ProjectSerializer()
-
-
-class ProjectPredictionResponse(serializers.Serializer):
-    predicted_votes = serializers.ListField(child=LegislatorPredictionResponse())
+    authors = serializers.ListField(child=AuthorSerializer())

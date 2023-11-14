@@ -24,6 +24,7 @@ class Predictor(NeuralNetwork):
         # self._evaluate()
 
     def _generate_inputs_for_prediction(self):
+        self.legislator_ids = self.df["voter_id"]
         self.legislators = self._get_legislators_input(self.df)
         self.authors = self._get_authors_input(self.df)
         self.authors = self.authors.applymap(lambda x: int(bool(x)))
@@ -75,4 +76,7 @@ class Predictor(NeuralNetwork):
         plt.bar(freq.keys(), freq.values())
         plt.title("Cantidad de votos predecidos por categoría")
         plt.show()
-        return vote_predictions
+        result = []
+        for legislator, vote_predictions in zip(self.legislator_ids, vote_predictions):
+            result.append({"legislator": legislator, "vote": vote_predictions})
+        return result

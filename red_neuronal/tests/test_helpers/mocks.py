@@ -154,6 +154,7 @@ def mock_new_votes_data(test_case: TestCase, total_results=None):
                 # Funciona si VOTES_PER_PROJECT * total_projects > len(person_ids)
                 person_id = test_case.person_ids[person_pointer]
                 person_pointer = (person_pointer + 1) % len(test_case.person_ids)
+                print("Person pointer at ", person_pointer)
             else:
                 person_id = random.choice(test_case.person_ids)
             vote = random.choice(VoteChoices.values)
@@ -253,7 +254,8 @@ def create_project_ids(test_case: TestCase):
 
 
 def create_person_ids(test_case: TestCase, allow_repetitions=True):
-    columns = {"person": "unique-int"}
+    column_type = "unique-int" if not allow_repetitions else "int"
+    columns = {"person": column_type}
     df: pd.DataFrame = create_fake_df(columns, n=test_case.MAX_TOTAL_PERSONS, as_dict=False)
     test_case.person_ids = list(df["person"].unique())
 

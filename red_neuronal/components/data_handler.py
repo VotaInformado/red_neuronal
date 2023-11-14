@@ -202,8 +202,9 @@ class PredictionDataHandler(DataHandler):
     @classmethod
     def get_prediction_df(cls, raw_data: dict):
         raw_authors = raw_data["authors"]
-        raw_legislators = raw_data["legislators"]
-        raw_project = raw_data["projects"]
+        raw_legislators = raw_data.get("legislators") or [raw_data.get("legislator")]
+        raw_project = raw_data["project"]
+        raw_project = raw_project if isinstance(raw_project, list) else [raw_project]
         project_df = pd.DataFrame(raw_project)
         authors_df = pd.DataFrame(raw_authors)
         legislators_df = pd.DataFrame(raw_legislators)
