@@ -146,14 +146,20 @@ def mock_new_votes_data(test_case: TestCase, total_results=None):
     votes_data = []
     projects_len = total_results // VOTES_PER_PROJECT if total_results else len(test_case.project_ids)
     total_projects = test_case.project_ids[:projects_len] if test_case else settings.project_ids[:projects_len]
+    person_pointer = 0
+    use_all_persons = getattr(test_case, "use_all_persons", False)
     for project_id in total_projects:
         for _ in range(VOTES_PER_PROJECT):
-            person_id = random.choice(test_case.person_ids)
+            if use_all_persons:
+                # Funciona si VOTES_PER_PROJECT * total_projects > len(person_ids)
+                person_id = test_case.person_ids[person_pointer]
+                person_pointer = (person_pointer + 1) % len(test_case.person_ids)
+            else:
+                person_id = random.choice(test_case.person_ids)
             vote = random.choice(VoteChoices.values)
             votes_data.append([project_id, person_id, vote])
             if getattr(test_case, "total_votes", None) is not None:
                 test_case.total_votes += 1
-
     # Create a dataframe from the generated data
     df = pd.DataFrame(votes_data, columns=["project", "person", "vote"])
 
@@ -190,12 +196,12 @@ def mock_new_authors_data(test_case: TestCase, total_results: int = None) -> pd.
     authors_data = []
     total_project_len = total_results // AUTHORS_PER_PROJECT if total_results else len(test_case.project_ids)
     total_projects = test_case.project_ids[:total_project_len]
-    print(f"Total projects: {total_project_len}")
     from tqdm import tqdm
-
+    test_case.parties = []
     for project_id in tqdm(total_projects):
         for _ in range(AUTHORS_PER_PROJECT):
-            party = Faker().name()
+            party = Faker().random_int(min=1, max=100)
+            test_case.parties.append(party)
             authors_data.append([project_id, party])
 
     # Create a dataframe from the generated data
@@ -246,8 +252,8 @@ def create_project_ids(test_case: TestCase):
     test_case.project_ids = list(df["project"].unique())
 
 
-def create_person_ids(test_case: TestCase):
-    columns = {"person": "int"}
+def create_person_ids(test_case: TestCase, allow_repetitions=True):
+    columns = {"person": "unique-int"}
     df: pd.DataFrame = create_fake_df(columns, n=test_case.MAX_TOTAL_PERSONS, as_dict=False)
     test_case.person_ids = list(df["person"].unique())
 

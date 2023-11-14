@@ -148,7 +148,6 @@ LOGGING = {
     "disable_existing_loggers": False,
     "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
     "formatters": {
-        "verbose": {"format": "%(levelname)s %(asctime)s %(module)s " "%(process)d %(thread)d %(message)s"},
         "colored_formatter": {
             "()": "colorlog.ColoredFormatter",
             "format": "\n%(log_color)s%(levelname)-8s%(white)s%(message)s",
@@ -172,7 +171,7 @@ LOGGING = {
         "red_neuronal": {
             "level": "DEBUG",
             "handlers": ["console"],
-            "propagate": True,
+            "propagate": False,
         },
     },
 }

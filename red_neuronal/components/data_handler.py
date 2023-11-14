@@ -94,7 +94,7 @@ class DataHandler:
 
     def _get_votes(self):
         url = settings.VOTES_DATA_ENDPOINT
-        # Expected columns: project_id, person_id, vote, date, party
+        # Expected columns: project_id, person, vote, date, party
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
@@ -108,7 +108,7 @@ class DataHandler:
 
     def _get_authors(self):
         url = settings.AUTHORS_DATA_ENDPOINT
-        # Expected columns: project, person_id, party
+        # Expected columns: project, person, party
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
@@ -180,3 +180,36 @@ class FitDataHandler(DataHandler):
     def _get_data_from_source(self, endpoint: str) -> pd.DataFrame:
         filters = {"created_at__gte": self.last_fetched_date}
         return super()._get_data_from_source(endpoint, filters)
+
+
+class PredictionDataHandler(DataHandler):
+    @classmethod
+    def _flatten_party_authors(cls, df: pd.DataFrame) -> pd.DataFrame:
+        df = df.groupby(df.columns.difference(["party"]).tolist(), as_index=False)["party"].agg(
+            lambda x: ";".join(map(str, x))
+        )
+        df.rename(columns={"party": "party_authors"}, inplace=True)
+        return df
+
+    @classmethod
+    def replicate_columns(cls, multi_row_df, single_row_df):
+        # Repeat the single-row dataframe df2 to match the number of rows in df1
+        repeated_df2 = pd.concat([single_row_df] * len(multi_row_df), ignore_index=True)
+        # Concatenate along columns (axis=1)
+        result_df = pd.concat([multi_row_df, repeated_df2], axis=1)
+        return result_df
+
+    @classmethod
+    def get_prediction_df(cls, raw_data: dict):
+        raw_authors = raw_data["authors"]
+        raw_legislators = raw_data["legislators"]
+        raw_project = raw_data["projects"]
+        project_df = pd.DataFrame(raw_project)
+        authors_df = pd.DataFrame(raw_authors)
+        legislators_df = pd.DataFrame(raw_legislators)
+        project_with_authors = cls.replicate_columns(authors_df, project_df)
+        # we remove the one row with party nan
+        project_with_authors = cls._flatten_party_authors(project_with_authors)
+        merged_df = cls.replicate_columns(legislators_df, project_with_authors)
+        merged_df = merged_df.rename(columns={"person": "voter_id"})
+        return merged_df

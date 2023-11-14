@@ -26,10 +26,11 @@ def create_fake_df(df_columns: dict, n=100, as_dict: bool = True, **kwargs):
     column_names = list(df_columns.keys())
     column_types = list(df_columns.values())
     fake_data = {}
+    existing_values = set()
     for i in range(n):
         new_record = {}
         for column_name, column_type in zip(column_names, column_types):
-            new_value = create_fake_value(column_type, n, **kwargs)
+            new_value = create_fake_value(column_type, n, existing_values, **kwargs)
             new_record[column_name] = new_value
         fake_data[i] = new_record
     if as_dict:
@@ -37,7 +38,7 @@ def create_fake_df(df_columns: dict, n=100, as_dict: bool = True, **kwargs):
     return pd.DataFrame.from_dict(fake_data, orient="index")
 
 
-def create_fake_value(column_type: str, n: int, **kwargs):
+def create_fake_value(column_type: str, n: int, existing_values: set, **kwargs):
     if column_type == "parties":
         parties_list = [
             "1",  # we mock string ids since we receive string ids from recoleccion
@@ -83,7 +84,18 @@ def create_fake_value(column_type: str, n: int, **kwargs):
         if kwargs.get("dates_as_str", True):
             return fake.date_of_birth(minimum_age=18, maximum_age=80)
         return fake.date_of_birth(minimum_age=18, maximum_age=80).strftime("%Y-%m-%d")
-    elif column_type == "int":
+    elif column_type == "int" or column_type == int:
         return fake.random_int(min=1, max=n)
+    elif column_type == "unique-int":
+        new_value = create_non_repeated_int(existing_values)
+        existing_values.add(new_value)
+        return new_value
     else:
         raise ValueError(f"Column type {column_type} not supported")
+
+
+def create_non_repeated_int(existing_values: set):
+    new_value = fake.random_int(min=1, max=10000000)
+    while new_value in existing_values:
+        new_value = fake.random_int(min=1, max=100)
+    return new_value

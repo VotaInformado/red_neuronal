@@ -43,7 +43,7 @@ class NeuralNetwork:
         # - project_title
         # - project_text
         # - voter_id
-        # - Partido Legislador --> TODO: esto no se estaría usando, entraría como voter_party
+        # - voter_party --> TODO: esto no se estaría usando, entraría como voter_party
         # - party_authors
         # - vote
         # - project_year

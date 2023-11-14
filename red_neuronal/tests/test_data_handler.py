@@ -4,14 +4,25 @@ import pandas as pd
 from datetime import datetime
 from django.conf import settings
 from django.core.management import call_command
+from red_neuronal.components.neural_network.predictor import Predictor
 
 
 # Project
 from red_neuronal.tests.test_helpers.test_case import CustomTestCase
 from red_neuronal.components.neural_network.trainer import Trainer
 import red_neuronal.tests.test_helpers.mocks as mck
+from red_neuronal.components.data_handler import FitDataHandler, PredictionDataHandler, TrainDataHandler
 from red_neuronal.tests.test_helpers.faker import create_fake_df
-from red_neuronal.components.data_handler import FitDataHandler, TrainDataHandler
+
+
+class NeuralNetworkTestCase(CustomTestCase):
+    def train_neural_network(self):
+        self.MAX_TOTAL_PERSONS = 50  # there could be repetitions in the generated data
+        self.MAX_TOTAL_PROJECTS = 100  # there could be repetitions in the generated data
+        mck.create_person_ids(self)
+        mck.create_project_ids(self)
+        with mck.mock_recoleccion_data(self):
+            call_command("train_neural_network")
 
 
 class DataRetrievalTestCase(CustomTestCase):
@@ -87,7 +98,6 @@ class TrainDataHandlerTestCase(CustomTestCase):
         with mck.mock_recoleccion_data(self):
             merged_df: pd.DataFrame = TrainDataHandler().get_data()
         column_to_drop = random.choice(merged_df.columns)
-        print(f"Column to drop: {column_to_drop}")
         merged_df = merged_df.drop(column_to_drop, axis=1)
         trainer = Trainer()
         with self.assertRaises(Exception) as context:
@@ -95,21 +105,13 @@ class TrainDataHandlerTestCase(CustomTestCase):
         self.assertIn(type(context.exception), POSSIBLE_EXPECTED_EXCEPTIONS)
 
 
-class FitDataHandlerTestCase(CustomTestCase):
+class FitDataHandlerTestCase(NeuralNetworkTestCase):
     def setUp(self):
         today = datetime.today()
         os.makedirs(os.path.dirname(settings.LAST_FETCHED_DATA_DIR), exist_ok=True)
         with open(settings.LAST_FETCHED_DATA_DIR, "w") as json_file:
             today_str = today.strftime("%Y-%m-%d")
             json_file.write(today_str)
-
-    def train_neural_network(self):
-        self.MAX_TOTAL_PERSONS = 50  # there could be repetitions in the generated data
-        self.MAX_TOTAL_PROJECTS = 100  # there could be repetitions in the generated data
-        mck.create_person_ids(self)
-        mck.create_project_ids(self)
-        with mck.mock_recoleccion_data(self):
-            call_command("train_neural_network")
 
     def test_retrieving_fitting_data(self):
         self.train_neural_network()
@@ -146,3 +148,92 @@ class FitDataHandlerTestCase(CustomTestCase):
         with self.assertRaises(Exception) as context:
             trainer.fit(merged_df)
         self.assertIn(type(context.exception), POSSIBLE_EXPECTED_EXCEPTIONS)
+
+
+class PredictionDataHandlerTestCase(NeuralNetworkTestCase):
+    def setUp(self):
+        today = datetime.today()
+        os.makedirs(os.path.dirname(settings.LAST_FETCHED_DATA_DIR), exist_ok=True)
+        with open(settings.LAST_FETCHED_DATA_DIR, "w") as json_file:
+            today_str = today.strftime("%Y-%m-%d")
+            json_file.write(today_str)
+
+    def train_neural_network(self, total_persons=None):
+        self.MAX_TOTAL_PERSONS = total_persons or 50
+        self.MAX_TOTAL_PROJECTS = 100  # there could be repetitions in the generated data
+        allow_repetitions = False if total_persons else True
+        mck.create_person_ids(self, allow_repetitions=allow_repetitions)
+        mck.create_project_ids(self)
+        with mck.mock_recoleccion_data(self):
+            call_command("train_neural_network")
+
+    def mock_legislators_data(self, total_legislators=1, use_existing=False):
+        columns = {"person": int}
+        df = create_fake_df(columns, n=total_legislators, as_dict=False)
+        if use_existing:
+            if len(self.person_ids) == total_legislators:
+                df["person"] = self.person_ids
+            else:
+                df["person"] = [random.choice(self.person_ids) for _ in range(total_legislators)]
+        return df
+
+    def mock_authors_data(self, total_parties=1, use_existing=False):
+        columns = {"party": int}
+        df = create_fake_df(columns, n=total_parties, as_dict=False)
+        if use_existing:
+            df["party"] = [random.choice(self.parties) for _ in range(total_parties)]
+        return df
+
+    def mock_project_data(self, use_existing=False):
+        columns = {"project": int, "project_year": "year", "project_title": "short_text", "project_text": "text"}
+        df = create_fake_df(columns, n=1, as_dict=False)
+        if use_existing:
+            df["project"] = self.project_ids[0]
+        return df
+
+    def test_creating_prediction_data(self):
+        TOTAL_LEGISLATORS = 72  # there could be repetitions in the generated data
+        EXPECTED_COLUMNS = {
+            "voter_id",
+            "party_authors",
+            "project",
+            "project_year",
+            "project_title",
+            "project_text",
+        }
+        self.project_ids = [1]
+        authors_data = self.mock_authors_data(total_parties=3)
+        project_data = self.mock_project_data()
+        legislators_data = self.mock_legislators_data(total_legislators=TOTAL_LEGISLATORS)
+        prediction_data = {"authors": authors_data, "legislators": legislators_data, "projects": project_data}
+        merged_df: pd.DataFrame = PredictionDataHandler.get_prediction_df(prediction_data)
+        expected_df_length = TOTAL_LEGISLATORS
+        self.assertEqual(len(merged_df), expected_df_length)
+        df_columns = set(merged_df.columns)
+        self.assertEqual(df_columns, EXPECTED_COLUMNS)
+
+    def test_neural_network_can_predict_with_project_prediction_data(self):
+        self.use_all_persons = True  # Makes sure all legislator_ids are used when generating data
+        TOTAL_LEGISLATORS = 72  # there could be repetitions in the generated data
+        self.train_neural_network(total_persons=TOTAL_LEGISLATORS)
+        authors_data = self.mock_authors_data(total_parties=3, use_existing=True)
+        legislators_data = self.mock_legislators_data(total_legislators=TOTAL_LEGISLATORS, use_existing=True)
+        project_data = self.mock_project_data(use_existing=True)
+        prediction_data = {"authors": authors_data, "legislators": legislators_data, "projects": project_data}
+        merged_df: pd.DataFrame = PredictionDataHandler.get_prediction_df(prediction_data)
+        predictor = Predictor()
+        predictions = predictor.predict(merged_df)
+        self.assertEqual(len(predictions), TOTAL_LEGISLATORS)
+
+    def test_neural_network_can_predict_with_legislator_prediction_data(self):
+        self.use_all_persons = True  # Makes sure all legislator_ids are used when generating data
+        TOTAL_LEGISLATORS = 1  # there could be repetitions in the generated data
+        self.train_neural_network()
+        authors_data = self.mock_authors_data(total_parties=3, use_existing=True)
+        legislators_data = self.mock_legislators_data(total_legislators=TOTAL_LEGISLATORS, use_existing=True)
+        project_data = self.mock_project_data(use_existing=True)
+        prediction_data = {"authors": authors_data, "legislators": legislators_data, "projects": project_data}
+        merged_df: pd.DataFrame = PredictionDataHandler.get_prediction_df(prediction_data)
+        predictor = Predictor()
+        predictions = predictor.predict(merged_df)
+        self.assertEqual(len(predictions), TOTAL_LEGISLATORS)
