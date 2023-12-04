@@ -14,7 +14,7 @@ def main():
             "available on your PYTHONPATH environment variable? Did you "
             "forget to activate a virtual environment?"
         ) from exc
-    if sys.argv[1] == "test":
+    if len(sys.argv) > 1 and sys.argv[1] == "test":
         os.environ["DJANGO_SETTINGS_MODULE"] = "setup.settings.test"
     execute_from_command_line(sys.argv)
 
