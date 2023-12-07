@@ -8,7 +8,7 @@ class UniversalEmbedding:
     Creates an instance of a Universal Encoder.
     """
 
-    model_url = "https://tfhub.dev/google/universal-sentence-encoder-multilingual/3"
+    model_url = "https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/tensorFlow2/variations/multilingual/versions/2"
 
     def __init__(self):
         self.model = hub.load(self.model_url)
