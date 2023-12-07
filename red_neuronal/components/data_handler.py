@@ -101,7 +101,7 @@ class DataHandler:
 
     def _get_law_projects(self):
         url = settings.PROJECTS_DATA_ENDPOINT
-        # Expected columns: project, project_title, project_text, project_year
+        # Expected columns: project_id, project_title, project_text, project_year
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
@@ -120,7 +120,7 @@ class DataHandler:
 
         votes = votes.dropna(subset=["project"])
         votes["project"] = votes["project"].astype(int)
-        law_projects["project"] = law_projects["project"].astype(int)
+        law_projects["project"] = law_projects["project_id"].astype(int)
         votes_and_projects = pd.merge(votes, law_projects, on="project")
         votes_and_projects = votes_and_projects.drop(["date"], axis=1)
         votes_and_projects = votes_and_projects.rename(columns={"person": "voter_id", "party": "voter_party"})
