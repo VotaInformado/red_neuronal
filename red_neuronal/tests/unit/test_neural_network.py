@@ -85,7 +85,7 @@ class NeuralNetworkTestCase(CustomTestCase):
         self.assertEqual(len(predictions), DF_LEN)
         prediction = predictions[0]
         possible_predictions = [choice.value for choice in VoteChoices]
-        self.assertIn(prediction, possible_predictions)
+        self.assertIn(prediction["vote"], possible_predictions)
 
     def test_project_neural_network_prediction(self):
         DF_LEN = 72
@@ -100,7 +100,7 @@ class NeuralNetworkTestCase(CustomTestCase):
         self.assertEqual(len(predictions), DF_LEN)
         possible_predictions = [choice.value for choice in VoteChoices]
         for prediction in predictions:
-            self.assertIn(prediction, possible_predictions)
+            self.assertIn(prediction["vote"], possible_predictions)
 
     def test_prediction_after_fit(self):
         DF_LEN = 1
@@ -117,4 +117,4 @@ class NeuralNetworkTestCase(CustomTestCase):
         self.assertEqual(len(predictions), DF_LEN)
         prediction = predictions[0]
         possible_predictions = [choice.value for choice in VoteChoices]
-        self.assertIn(prediction, possible_predictions)
+        self.assertIn(prediction["vote"], possible_predictions)
