@@ -126,7 +126,7 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Neural network persistence
-FILES_COMMON_DIR = "red_neuronal/persistence"
+FILES_COMMON_DIR = "./red_neuronal/persistence"
 MODEL_SAVING_DIR = f"{FILES_COMMON_DIR}/model"
 ENCODING_SAVING_DIR = f"{FILES_COMMON_DIR}/encoder"
 
