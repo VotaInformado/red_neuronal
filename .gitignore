@@ -162,4 +162,5 @@ my_first_model.png
 *.h5
 *model.json
 *.pkl
-.envs/.local/.django
+data_handler/last_fetched_date.txt
+

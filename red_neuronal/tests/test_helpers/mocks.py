@@ -242,7 +242,7 @@ def mock_new_projects_data(test_case: TestCase, total_project_len: int = None) -
         "project_year": "year",
     }
     df: pd.DataFrame = create_fake_df(columns, n=total_project_len, as_dict=False)
-    df["project"] = test_case.project_ids
+    df["project_id"] = test_case.project_ids
     test_case.existing_projects = df  # used for fitting tests
     return df
 

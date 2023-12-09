@@ -26,7 +26,7 @@ class Encoder:
 
     def _load_encoder_for_training(self):
         """For training, we create the encoder from scratch"""
-        self.encoder = OneHotEncoder(handle_unknown="ignore", sparse=False)
+        self.encoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
 
     def _load_encoder_for_fit(self):
         """For fitting, we load the encoder from disk. It should already have been saved"""

@@ -1,0 +1,8 @@
+DJANGO_SETTINGS_MODULE=setup.settings.base
+DJANGO_SECRET_KEY="bad_secret_key"
+DJANGO_DEBUG=True
+VALIDATE_X_REAL_IP=False
+VOTES_DATA_ENDPOINT=http://recoleccion:8000/neural-network/votes/
+PROJECTS_DATA_ENDPOINT=http://recoleccion:8000/neural-network/law-projects/
+AUTHORS_DATA_ENDPOINT=http://recoleccion:8000/neural-network/authors/
+TFHUB_CACHE_DIR=./.cache/tfhub_modules

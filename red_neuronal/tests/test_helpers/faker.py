@@ -90,3 +90,6 @@ def create_fake_value(column_type: str, n: int, **kwargs):
     else:
         raise ValueError(f"Column type {column_type} not supported")
 
+
+def reset_fake_data():
+    fake.unique.clear()
