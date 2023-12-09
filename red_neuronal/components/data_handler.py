@@ -102,6 +102,8 @@ class DataHandler:
         # Expected columns: project_id, person, vote, date, party
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
+        raw_df = raw_df.dropna(subset=["vote"])
+        raw_df = raw_df[raw_df["vote"] != ""]
         return raw_df
 
     def _get_law_projects(self):

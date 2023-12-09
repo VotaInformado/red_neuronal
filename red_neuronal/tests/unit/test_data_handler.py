@@ -15,6 +15,7 @@ from red_neuronal.components.data_handler import (
     FitDataHandler,
     PredictionDataHandler,
     TrainDataHandler,
+    DataHandler,
 )
 from red_neuronal.tests.test_helpers.faker import create_fake_df, reset_fake_data
 
@@ -22,6 +23,7 @@ from red_neuronal.tests.test_helpers.faker import create_fake_df, reset_fake_dat
 class NeuralNetworkTestCase(CustomTestCase):
     def tearDown(self) -> None:
         reset_fake_data()
+
     def train_neural_network(self):
         self.MAX_TOTAL_PERSONS = 50  # there could be repetitions in the generated data
         self.MAX_TOTAL_PROJECTS = (
@@ -31,6 +33,44 @@ class NeuralNetworkTestCase(CustomTestCase):
         mck.create_project_ids(self)
         with mck.mock_recoleccion_data(self):
             call_command("train_neural_network")
+
+
+class DataHandlerTestCase(CustomTestCase):
+    def test_ignores_votes_with_null_or_empty_vote_value(self):
+        expected_columns = ["project_id", "person", "vote", "date", "party"]
+        rows = [
+            {
+                "project_id": 1,
+                "person": "John",
+                "vote": "POSITIVE",
+                "date": "2022-01-01",
+                "party": "ABC",
+            },
+            {
+                "project_id": 2,
+                "person": "Jane",
+                "vote": None,
+                "date": "2022-01-02",
+                "party": "XYZ",
+            },
+            {
+                "project_id": 2,
+                "person": "Jane",
+                "vote": "",
+                "date": "2022-01-02",
+                "party": "XYZ",
+            },
+        ]
+
+        expected_df = pd.DataFrame.from_records(data=rows, columns=expected_columns)
+        data_handler = DataHandler()
+
+        with mck.mock_method(DataHandler, "_get_data_from_source", return_value=expected_df):
+            result = data_handler._get_votes()
+
+        self.assertEqual(result.columns.tolist(), expected_columns)
+        self.assertEqual(result.shape, (1, 5))
+        self.assertIn("POSITIVE", result["vote"].tolist())
 
 
 class DataRetrievalTestCase(CustomTestCase):
@@ -173,7 +213,6 @@ class PredictionDataHandlerTestCase(NeuralNetworkTestCase):
         with open(settings.LAST_FETCHED_DATA_DIR, "w") as json_file:
             today_str = today.strftime("%Y-%m-%d")
             json_file.write(today_str)
-
 
     def train_neural_network(self, total_persons=None):
         self.MAX_TOTAL_PERSONS = total_persons or 50
