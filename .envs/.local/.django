@@ -4,5 +4,7 @@ DJANGO_DEBUG=True
 VALIDATE_X_REAL_IP=False
 VOTES_DATA_ENDPOINT=http://recoleccion:8000/neural-network/votes/
 PROJECTS_DATA_ENDPOINT=http://recoleccion:8000/neural-network/law-projects/
+LEGISLATORS_DATA_ENDPOINT=http://recoleccion:8000/neural-network/legislators/
 AUTHORS_DATA_ENDPOINT=http://recoleccion:8000/neural-network/authors/
+PARTIES_DATA_ENDPOINT=http://recoleccion:8000/neural-network/parties/
 TFHUB_CACHE_DIR=./.cache/tfhub_modules

@@ -111,9 +111,9 @@ def mock_recoleccion_data(test_case: TestCase, use_existing_data: bool = False):
     authors_data = mock_authors_data(test_case, use_existing_data)
     # legislators_data = mock_legislators_data(test_case, existing_data)
     projects_data = mock_projects_data(test_case, use_existing_data)
-    with mock_method(DataHandler, "_get_votes", return_value=votes_data):
-        with mock_method(DataHandler, "_get_authors", return_value=authors_data):
-            with mock_method(DataHandler, "_get_law_projects", return_value=projects_data):
+    with mock_method(DataHandler, "get_votes", return_value=votes_data):
+        with mock_method(DataHandler, "get_authors", return_value=authors_data):
+            with mock_method(DataHandler, "get_law_projects", return_value=projects_data):
                 yield
 
 

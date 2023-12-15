@@ -25,11 +25,11 @@ class DataHandler:
         return response
 
     def get_data(self):
-        votes = self._get_votes()
-        authors = self._get_authors()
-        # legislators = self._get_legislators()
-        projects = self._get_law_projects()
-        final_df: pd.DataFrame = self._merge_data(votes, authors, projects)
+        votes = self.get_votes()
+        authors = self.get_authors()
+        # legislators = self.get_legislators()
+        projects = self.get_law_projects()
+        final_df: pd.DataFrame = self.merge_data(votes, authors, projects)
         return final_df
 
     def _get_data_from_source(self, endpoint: str, filters={}) -> pd.DataFrame:
@@ -91,13 +91,18 @@ class DataHandler:
         df: pd.DataFrame = pd.DataFrame(received_data)
         return df
 
-    def _get_legislators(self):
+    def get_legislators(self):
         url = settings.LEGISLATORS_DATA_ENDPOINT
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
+    
+    def get_parties(self):
+        url = settings.PARTIES_DATA_ENDPOINT
+        raw_df = self._get_data_from_source(url)
+        return raw_df
 
-    def _get_votes(self):
+    def get_votes(self):
         url = settings.VOTES_DATA_ENDPOINT
         # Expected columns: project_id, person, vote, date, party
         raw_df = self._get_data_from_source(url)
@@ -106,21 +111,21 @@ class DataHandler:
         raw_df = raw_df[raw_df["vote"] != ""]
         return raw_df
 
-    def _get_law_projects(self):
+    def get_law_projects(self):
         url = settings.PROJECTS_DATA_ENDPOINT
         # Expected columns: project_id, project_title, project_text, project_year
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
 
-    def _get_authors(self):
+    def get_authors(self):
         url = settings.AUTHORS_DATA_ENDPOINT
         # Expected columns: project, person, party
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
 
-    def _merge_data(self, votes, authors, law_projects):
+    def merge_data(self, votes, authors, law_projects):
         # TODO: convertir project de law_projects a int
         # Result DF: voter_id, vote, project, project_title, project_text, project_year, party_authors
         # we remove all votes without project
@@ -223,7 +228,9 @@ class PredictionDataHandler(DataHandler):
             else [raw_data.get("legislator")]
         )
         raw_project = raw_data["project"]
-        raw_project = [raw_project]  if isinstance(raw_project, OrderedDict) else raw_project
+        raw_project = (
+            [raw_project] if isinstance(raw_project, OrderedDict) else raw_project
+        )
         project_df = pd.DataFrame(raw_project)
         authors_df = pd.DataFrame(raw_authors)
         legislators_df = pd.DataFrame(raw_legislators)

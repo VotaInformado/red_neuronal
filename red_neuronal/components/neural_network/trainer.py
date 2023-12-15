@@ -19,10 +19,16 @@ from red_neuronal.utils.logger import logger
 
 
 class Trainer(NeuralNetwork):
-    def train(self, df: pd.DataFrame):
+    def train(
+        self,
+        df: pd.DataFrame,
+        votes: pd.DataFrame,
+        parties: pd.DataFrame,
+        legislators: pd.DataFrame,
+    ):
         """Trains the model from scratch, using the database saved in the class."""
         self.df: pd.DataFrame = self._normalize_years(df)
-        self._fit_encoders()
+        self._fit_encoders(votes, parties, legislators)
         self._split_dataframe()
         self._generate_inputs()
         self._create_embeddings()
@@ -45,7 +51,9 @@ class Trainer(NeuralNetwork):
         self._save_model()
 
     def _create_text_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["project"])[["project", "project_text"]]
+        law_and_text = self.df.drop_duplicates(subset=["project"])[
+            ["project", "project_text"]
+        ]
         law_and_text["project_text"] = law_and_text["project_text"].map(
             lambda x: self.embedder.create_law_text_embedding(x)
         )
@@ -58,7 +66,9 @@ class Trainer(NeuralNetwork):
         self.texts_test = self._get_embeddings(self.df_test, text_and_embedding)
 
     def _create_title_embeddings(self):
-        law_and_text = self.df.drop_duplicates(subset=["project"])[["project", "project_title"]]
+        law_and_text = self.df.drop_duplicates(subset=["project"])[
+            ["project", "project_title"]
+        ]
         law_and_text["project_title"] = law_and_text["project_title"].map(
             lambda x: self.embedder.create_law_text_embedding(x)
         )
@@ -95,7 +105,8 @@ class Trainer(NeuralNetwork):
     def _generate_inputs(self):
         # One hot encode votos
         self.y_train, self.y_val, self.y_test = [
-            self.votes_encoder.transform(y.to_frame()) for y in [self.y_train, self.y_val, self.y_test]
+            self.votes_encoder.transform(y.to_frame())
+            for y in [self.y_train, self.y_val, self.y_test]
         ]
 
         self.legislators_train = self._get_legislators_input(self.df_train)
@@ -116,31 +127,41 @@ class Trainer(NeuralNetwork):
         self.law_titles_input_dim = self.titles_train.shape[1]
         self.legislators_input_dim = len(self.legislators_encoder.get_feature_names())
         party_categories = len(self.parties_encoder.get_feature_names())
-        max_parties_value = self.authors_train.max().max()
-        self.authors_input_dim = int(max(party_categories, max_parties_value))
         self.authors_input_dim = party_categories
 
     def _create_network_inputs(self):
         self.law_texts_input = keras.Input(
             shape=(self.law_texts_input_dim,), name="law_texts"
         )  # Variable-length sequence of ints
-        self.legislators_input = keras.Input(shape=(self.legislators_input_dim,), name="legislators")
-        self.authors_input = keras.Input(shape=(self.authors_input_dim,), name="authors")
+        self.legislators_input = keras.Input(
+            shape=(self.legislators_input_dim,), name="legislators"
+        )
+        self.authors_input = keras.Input(
+            shape=(self.authors_input_dim,), name="authors"
+        )
         self.years_input = keras.Input(shape=(1,), name="years")
-        self.law_titles_input = keras.Input(shape=(self.law_titles_input_dim,), name="law_titles")
+        self.law_titles_input = keras.Input(
+            shape=(self.law_titles_input_dim,), name="law_titles"
+        )
 
     def _create_embeddings_layers(self):
         self.law_features = layers.Embedding(
-            self.law_texts_input_dim, int(self.law_texts_input_dim / 10), name="law_embedding"
+            self.law_texts_input_dim,
+            int(self.law_texts_input_dim / 10),
+            name="law_embedding",
         )(self.law_texts_input)
-        self.legislators_features = layers.Embedding(self.legislators_input_dim, 10, name="legislators_embedding")(
-            self.legislators_input
-        )
+        self.legislators_features = layers.Embedding(
+            self.legislators_input_dim, 10, name="legislators_embedding"
+        )(self.legislators_input)
         self.authors_features = layers.Embedding(
-            self.authors_input_dim, int(self.authors_input_dim / 10), name="authors_embedding"
+            self.authors_input_dim,
+            int(self.authors_input_dim / 10),
+            name="authors_embedding",
         )(self.authors_input)
         self.title_features = layers.Embedding(
-            self.law_titles_input_dim, int(self.law_titles_input_dim / 10), name="title_embedding"
+            self.law_titles_input_dim,
+            int(self.law_titles_input_dim / 10),
+            name="title_embedding",
         )(self.law_titles_input)
 
     def _create_flattened_layers(self):
@@ -161,9 +182,15 @@ class Trainer(NeuralNetwork):
         )
 
     def _add_extra_dense_layers(self):
-        self.features = layers.Dense(128, activation="relu", name="relu_1")(self.features)
-        self.features = layers.Dense(128, activation="relu", name="relu_2")(self.features)
-        self.features = layers.Dense(128, activation="relu", name="relu_3")(self.features)
+        self.features = layers.Dense(128, activation="relu", name="relu_1")(
+            self.features
+        )
+        self.features = layers.Dense(128, activation="relu", name="relu_2")(
+            self.features
+        )
+        self.features = layers.Dense(128, activation="relu", name="relu_3")(
+            self.features
+        )
 
     def _create_output_layer(self):
         self.output_dim = len(self.votes_encoder.get_feature_names())

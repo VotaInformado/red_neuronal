@@ -126,7 +126,7 @@ STATIC_URL = "static/"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # Neural network persistence
-FILES_COMMON_DIR = "./red_neuronal/persistence"
+FILES_COMMON_DIR = "red_neuronal/persistence"
 MODEL_SAVING_DIR = f"{FILES_COMMON_DIR}/model"
 ENCODING_SAVING_DIR = f"{FILES_COMMON_DIR}/encoder"
 
@@ -141,6 +141,7 @@ VOTES_DATA_ENDPOINT = config.get("VOTES_DATA_ENDPOINT", "")
 LEGISLATORS_DATA_ENDPOINT = config.get("LEGISLATORS_DATA_ENDPOINT", "")
 PROJECTS_DATA_ENDPOINT = config.get("PROJECTS_DATA_ENDPOINT", "")
 AUTHORS_DATA_ENDPOINT = config.get("AUTHORS_DATA_ENDPOINT", "")
+PARTIES_DATA_ENDPOINT = config.get("PARTIES_DATA_ENDPOINT", "")
 DEFAULT_PAGE_SIZE = 1000
 
 LOGGING = {

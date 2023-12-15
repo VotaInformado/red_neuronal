@@ -12,7 +12,10 @@ from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
 class Command(BaseCommand):
     def handle(self, *args, **options):
         data_handler = FitDataHandler()
-        df: pd.DataFrame = data_handler.get_data()
+        votes = data_handler.get_votes()
+        authors = data_handler.get_authors()
+        projects = data_handler.get_law_projects()
+        df: pd.DataFrame = data_handler.merge_data(votes, authors, projects)
         trainer = Trainer()
-        trainer.train(df)
+        trainer.train(df, votes, authors, projects)
         data_handler._update_last_fetched_date()

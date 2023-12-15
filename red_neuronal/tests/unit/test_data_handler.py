@@ -65,8 +65,10 @@ class DataHandlerTestCase(CustomTestCase):
         expected_df = pd.DataFrame.from_records(data=rows, columns=expected_columns)
         data_handler = DataHandler()
 
-        with mck.mock_method(DataHandler, "_get_data_from_source", return_value=expected_df):
-            result = data_handler._get_votes()
+        with mck.mock_method(
+            DataHandler, "_get_data_from_source", return_value=expected_df
+        ):
+            result = data_handler.get_votes()
 
         self.assertEqual(result.columns.tolist(), expected_columns)
         self.assertEqual(result.shape, (1, 5))
@@ -82,7 +84,7 @@ class DataRetrievalTestCase(CustomTestCase):
         mck.create_person_ids(settings)
         mck.create_project_ids(settings)
         with mck.mock_method_paginated_data_retrieval(self):
-            df: pd.DataFrame = TrainDataHandler()._get_votes()
+            df: pd.DataFrame = TrainDataHandler().get_votes()
         self.assertEqual(len(df), settings.TOTAL_RESULTS)
 
     def test_retrieving_non_paginated_data(self):
@@ -93,7 +95,7 @@ class DataRetrievalTestCase(CustomTestCase):
         mck.create_person_ids(settings)
         mck.create_project_ids(settings)
         with mck.mock_method_paginated_data_retrieval(self):
-            df: pd.DataFrame = TrainDataHandler()._get_votes()
+            df: pd.DataFrame = TrainDataHandler().get_votes()
         self.assertEqual(len(df), settings.TOTAL_RESULTS)
 
 
@@ -138,9 +140,12 @@ class TrainDataHandlerTestCase(CustomTestCase):
         mck.create_person_ids(self)
         mck.create_project_ids(self)
         with mck.mock_recoleccion_data(self):
-            merged_df: pd.DataFrame = TrainDataHandler().get_data()
+            votes = TrainDataHandler().get_votes()
+            authors = TrainDataHandler().get_authors()
+            projects = TrainDataHandler().get_law_projects()
+            merged_df = TrainDataHandler().merge_data(votes, authors, projects)
         trainer = Trainer()
-        trainer.train(merged_df)
+        trainer.train(merged_df, votes, authors, projects)
         # We just want to check that the training does not fail
 
     def test_neural_network_cannot_train_with_incorrect_merged_data(self):
@@ -152,12 +157,16 @@ class TrainDataHandlerTestCase(CustomTestCase):
         mck.create_person_ids(self)
         mck.create_project_ids(self)
         with mck.mock_recoleccion_data(self):
-            merged_df: pd.DataFrame = TrainDataHandler().get_data()
+            votes = TrainDataHandler().get_votes()
+            authors = TrainDataHandler().get_authors()
+            projects = TrainDataHandler().get_law_projects()
+            merged_df = TrainDataHandler().merge_data(votes, authors, projects)
+
         column_to_drop = random.choice(merged_df.columns)
         merged_df = merged_df.drop(column_to_drop, axis=1)
         trainer = Trainer()
         with self.assertRaises(Exception) as context:
-            trainer.train(merged_df)
+            trainer.train(merged_df, votes, authors, projects)
         self.assertIn(type(context.exception), POSSIBLE_EXPECTED_EXCEPTIONS)
 
 
