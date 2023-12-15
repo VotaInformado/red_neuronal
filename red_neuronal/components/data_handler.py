@@ -96,7 +96,7 @@ class DataHandler:
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
         return raw_df
-    
+
     def get_parties(self):
         url = settings.PARTIES_DATA_ENDPOINT
         raw_df = self._get_data_from_source(url)
@@ -107,6 +107,8 @@ class DataHandler:
         # Expected columns: project_id, person, vote, date, party
         raw_df = self._get_data_from_source(url)
         # TODO: Process the data to leave only the columns we need
+        if raw_df.empty:
+            return raw_df
         raw_df = raw_df.dropna(subset=["vote"])
         raw_df = raw_df[raw_df["vote"] != ""]
         return raw_df

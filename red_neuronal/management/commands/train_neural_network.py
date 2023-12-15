@@ -12,9 +12,12 @@ from red_neuronal.utils.logger import logger
 
 class Command(BaseCommand):
     def add_arguments(self, parser):
-        parser.add_argument("--starting-date", nargs="+", type=str, help="Starting date (YYYY-MM-DD)")
+        parser.add_argument(
+            "--starting-date", nargs="+", type=str, help="Starting date (YYYY-MM-DD)"
+        )
 
     def handle(self, *args, **options):
+        logger.info("Starting TRAIN_NEURAL_NETWORK command.")
         starting_date = options.get("starting_date")
         data_handler = TrainDataHandler(starting_date=starting_date)
         logger.info("Retrieving data...")
