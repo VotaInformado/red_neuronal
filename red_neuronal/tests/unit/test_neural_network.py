@@ -47,10 +47,12 @@ class NeuralNetworkTestCase(CustomTestCase):
         return df
     
     def split_df(self, df: pd.DataFrame):
-        votes = list(df["vote"].unique())
-        authors = list(df["voter_id"].unique())
-        projects = list(df["project"].unique())
-        return votes, authors, projects
+        votes = df["vote"].to_frame()
+        legislators = df["voter_id"].to_frame()
+        legislators.rename(columns={"voter_id": "id"}, inplace=True)
+        parties = df["party_authors"].to_frame()
+        parties.rename(columns={"party_authors": "id"}, inplace=True)
+        return votes, parties, legislators
 
     def test_neural_network_training(self):
         df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
@@ -60,18 +62,18 @@ class NeuralNetworkTestCase(CustomTestCase):
 
     def test_neural_network_fit_with_in_memory_model(self):
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        votes, authors, projects = self.split_df(train_df)
+        votes, parties, legislators = self.split_df(train_df)
         fit_df: pd.DataFrame = self.create_fit_df(train_df)
         trainer = Trainer()
-        trainer.train(train_df, votes, authors, projects)
+        trainer.train(train_df, votes, parties, legislators)
         trainer.fit(fit_df)
 
     def test_neural_network_fit_with_persisted_model(self):
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        votes, authors, projects = self.split_df(train_df)
+        votes, parties, legislators = self.split_df(train_df)
         fit_df: pd.DataFrame = self.create_fit_df(train_df)
         trainer = Trainer()
-        trainer.train(train_df, votes, authors, projects)
+        trainer.train(train_df, votes, parties, legislators)
         trainer = Trainer()
         trainer.fit(fit_df)
 
@@ -84,9 +86,9 @@ class NeuralNetworkTestCase(CustomTestCase):
     def test_legislator_neural_network_prediction(self):
         DF_LEN = 1
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        votes, authors, projects = self.split_df(train_df)
+        votes, parties, legislators = self.split_df(train_df)
         trainer = Trainer()
-        trainer.train(train_df, votes, authors, projects)
+        trainer.train(train_df, votes, parties, legislators)
         predict_columns = self.COLUMNS.copy()
         predict_columns.pop("vote")
         prediction_df: pd.DataFrame = self.create_prediction_df(train_df, DF_LEN)
@@ -100,9 +102,9 @@ class NeuralNetworkTestCase(CustomTestCase):
     def test_project_neural_network_prediction(self):
         DF_LEN = 72
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        votes, authors, projects = self.split_df(train_df)
+        votes, parties, legislators = self.split_df(train_df)
         trainer = Trainer()
-        trainer.train(train_df, votes, authors, projects)
+        trainer.train(train_df, votes, parties, legislators)
         predict_columns = self.COLUMNS.copy()
         predict_columns.pop("vote")
         prediction_df: pd.DataFrame = self.create_prediction_df(train_df, DF_LEN)
@@ -116,9 +118,9 @@ class NeuralNetworkTestCase(CustomTestCase):
     def test_prediction_after_fit(self):
         DF_LEN = 1
         train_df: pd.DataFrame = create_fake_df(self.COLUMNS, n=500, as_dict=False)
-        votes, authors, projects = self.split_df(train_df)
+        votes, parties, legislators = self.split_df(train_df)
         trainer = Trainer()
-        trainer.train(train_df, votes, authors, projects)
+        trainer.train(train_df, votes, parties, legislators)
         predict_columns = self.COLUMNS.copy()
         predict_columns.pop("vote")
         fit_df: pd.DataFrame = self.create_fit_df(train_df)

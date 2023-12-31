@@ -56,7 +56,12 @@ def mock_method(mocked_class, method_name, return_value=None, new_callable=None)
     """Mocks a method of a class"""
     mocked_class_name = mocked_class.__name__
     if is_internal_mock_enabled():
-        patcher = patch.object(mocked_class, method_name, return_value=return_value, new_callable=new_callable)
+        patcher = patch.object(
+            mocked_class,
+            method_name,
+            return_value=return_value,
+            new_callable=new_callable,
+        )
         return patcher
     else:
         # This function needs to return a context manager, so this must be used
@@ -79,7 +84,9 @@ def mock_class_attribute(mocked_class, attribute_name, new_attribute_value):
         return patcher
     else:
         # This function needs to return a context manager, so this must be used
-        patcher = patch.object(FakeClass, "fake_method", return_value=new_attribute_value)
+        patcher = patch.object(
+            FakeClass, "fake_method", return_value=new_attribute_value
+        )
         return patcher
 
 
@@ -109,12 +116,21 @@ def get_file_data_length(src_file):
 def mock_recoleccion_data(test_case: TestCase, use_existing_data: bool = False):
     votes_data = mock_votes_data(test_case, use_existing_data)
     authors_data = mock_authors_data(test_case, use_existing_data)
-    # legislators_data = mock_legislators_data(test_case, existing_data)
+    legislators_data = mock_legislators_data(test_case, use_existing_data)
+    parties_data = authors_data.copy()
+    parties_data.rename(columns={"party": "id"}, inplace=True)
     projects_data = mock_projects_data(test_case, use_existing_data)
     with mock_method(DataHandler, "get_votes", return_value=votes_data):
         with mock_method(DataHandler, "get_authors", return_value=authors_data):
-            with mock_method(DataHandler, "get_law_projects", return_value=projects_data):
-                yield
+            with mock_method(
+                DataHandler, "get_law_projects", return_value=projects_data
+            ):
+                with mock_method(
+                    DataHandler, "get_legislators", return_value=legislators_data
+                ):
+                    with mock_method( DataHandler, "get_parties", return_value=parties_data):
+                        
+                        yield
 
 
 def mock_votes_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFrame:
@@ -144,8 +160,16 @@ def mock_new_votes_data(test_case: TestCase, total_results=None):
     VOTES_PER_PROJECT = 5  # setear un TOTAL_RESULTS múltiplo de VOTES_PER_PROJECT
     # Generate random votes for each project and person combination
     votes_data = []
-    projects_len = total_results // VOTES_PER_PROJECT if total_results else len(test_case.project_ids)
-    total_projects = test_case.project_ids[:projects_len] if test_case else settings.project_ids[:projects_len]
+    projects_len = (
+        total_results // VOTES_PER_PROJECT
+        if total_results
+        else len(test_case.project_ids)
+    )
+    total_projects = (
+        test_case.project_ids[:projects_len]
+        if test_case
+        else settings.project_ids[:projects_len]
+    )
     person_pointer = 0
     use_all_persons = getattr(test_case, "use_all_persons", False)
     for project_id in total_projects:
@@ -192,12 +216,34 @@ def mock_authors_existing_data(test_case: TestCase):
     return limited_data
 
 
-def mock_new_authors_data(test_case: TestCase, total_results: int = None) -> pd.DataFrame:
+def mock_legislators_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFrame:
+    if use_existing_data:
+        return mock_legislators_existing_data(test_case)
+    else:
+        return mock_new_legislators_data(test_case)
+
+
+def mock_legislators_existing_data(test_case: TestCase):
+    new_legislators = getattr(test_case, "NEW_LEGISLATORS", DEFAULT_NEW_OBJECTS)
+    existing_data_columns = ["person_full_name"]
+    selected_data = test_case.existing_legislators[existing_data_columns]
+    limited_data = selected_data.head(new_legislators)
+    return limited_data
+
+
+def mock_new_authors_data(
+    test_case: TestCase, total_results: int = None
+) -> pd.DataFrame:
     AUTHORS_PER_PROJECT = 4  # setear un TOTAL_RESULTS múltiplo de AUTHORS_PER_PROJECT
     authors_data = []
-    total_project_len = total_results // AUTHORS_PER_PROJECT if total_results else len(test_case.project_ids)
+    total_project_len = (
+        total_results // AUTHORS_PER_PROJECT
+        if total_results
+        else len(test_case.project_ids)
+    )
     total_projects = test_case.project_ids[:total_project_len]
     from tqdm import tqdm
+
     test_case.parties = []
     for project_id in tqdm(total_projects):
         for _ in range(AUTHORS_PER_PROJECT):
@@ -211,19 +257,22 @@ def mock_new_authors_data(test_case: TestCase, total_results: int = None) -> pd.
     return df
 
 
-def mock_legislators_data(test_case: TestCase) -> pd.DataFrame:
+def mock_new_legislators_data(test_case: TestCase) -> pd.DataFrame:
     # TODO: de los legisladores sacamos nada más los nombres, podríamos intentar no usarlo pero hay que ver si funciona en la red
     n = len(test_case.person_ids)
     columns = {
         "person_full_name": "str",
     }
     df: pd.DataFrame = create_fake_df(columns, n=n, as_dict=False)
-    df["person"] = test_case.person_ids
+    df["id"] = test_case.person_ids
+    test_case.existing_legislators = df  # used for fitting tests
     return df
 
 
 def mock_projects_data(test_case: TestCase, use_existing_data: bool) -> pd.DataFrame:
-    return mock_new_projects_data(test_case)  # there should be no problem with new projects
+    return mock_new_projects_data(
+        test_case
+    )  # there should be no problem with new projects
 
 
 def mock_projects_existing_data(test_case: TestCase):
@@ -234,7 +283,9 @@ def mock_projects_existing_data(test_case: TestCase):
     return limited_data
 
 
-def mock_new_projects_data(test_case: TestCase, total_project_len: int = None) -> pd.DataFrame:
+def mock_new_projects_data(
+    test_case: TestCase, total_project_len: int = None
+) -> pd.DataFrame:
     total_project_len = total_project_len or len(test_case.project_ids)
     columns = {
         "project_title": "short_text",
@@ -249,14 +300,18 @@ def mock_new_projects_data(test_case: TestCase, total_project_len: int = None) -
 
 def create_project_ids(test_case: TestCase):
     columns = {"project": "int"}
-    df: pd.DataFrame = create_fake_df(columns, n=test_case.MAX_TOTAL_PROJECTS, as_dict=False)
+    df: pd.DataFrame = create_fake_df(
+        columns, n=test_case.MAX_TOTAL_PROJECTS, as_dict=False
+    )
     test_case.project_ids = list(df["project"].unique())
 
 
 def create_person_ids(test_case: TestCase, allow_repetitions=True):
     column_type = "unique-int" if not allow_repetitions else "int"
     columns = {"person": column_type}
-    df: pd.DataFrame = create_fake_df(columns, n=test_case.MAX_TOTAL_PERSONS, as_dict=False)
+    df: pd.DataFrame = create_fake_df(
+        columns, n=test_case.MAX_TOTAL_PERSONS, as_dict=False
+    )
     test_case.person_ids = list(df["person"].unique())
 
 
@@ -279,10 +334,16 @@ def paginate_data(df: pd.DataFrame):
 @contextmanager
 def mock_method_paginated_data_retrieval(paginated_response=True):
     if paginated_response:
-        with mock_method_side_effect(requests.Session, "get", side_effect=_mock_method_paginated_data_retrieval):
+        with mock_method_side_effect(
+            requests.Session, "get", side_effect=_mock_method_paginated_data_retrieval
+        ):
             yield
     else:
-        with mock_method_side_effect(requests.Session, "get", side_effect=_mock_method_non_paginated_data_retrieval):
+        with mock_method_side_effect(
+            requests.Session,
+            "get",
+            side_effect=_mock_method_non_paginated_data_retrieval,
+        ):
             yield
 
 
@@ -297,7 +358,11 @@ def _get_current_page(url):
 def _calculate_next_page(current_page):
     # If the current page is the last one, we return None
     total_pages = settings.TOTAL_RESULTS // settings.PAGE_SIZE
-    total_pages = total_pages if settings.TOTAL_RESULTS % settings.PAGE_SIZE == 0 else total_pages + 1
+    total_pages = (
+        total_pages
+        if settings.TOTAL_RESULTS % settings.PAGE_SIZE == 0
+        else total_pages + 1
+    )
     if current_page == total_pages:
         return None
     # Otherwise, we return the next page

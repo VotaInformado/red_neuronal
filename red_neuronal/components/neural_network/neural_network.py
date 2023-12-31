@@ -64,7 +64,6 @@ class NeuralNetwork:
         self.votes_encoder = VotesEncoder(is_training=True)
         self.legislators_encoder = LegislatorsEncoder(is_training=True)
         self.parties_encoder = PartiesEncoder(is_training=True)
-
         self.votes_encoder.fit(votes["vote"].to_frame())
         legislators = legislators["id"].to_frame()
         legislators.rename(columns={"id": "voter_id"}, inplace=True)

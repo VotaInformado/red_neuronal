@@ -188,10 +188,9 @@ class TrainDataHandler(DataHandler):
         return filters
 
     def _get_data_from_source(self, endpoint: str) -> pd.DataFrame:
+        filters = {}
         if self.starting_date:
             filters = self._get_filters_for_endpoint(endpoint)
-        else:
-            filters = {}
         return super()._get_data_from_source(endpoint, filters)
 
 

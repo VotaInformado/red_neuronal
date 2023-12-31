@@ -141,11 +141,13 @@ class TrainDataHandlerTestCase(CustomTestCase):
         mck.create_project_ids(self)
         with mck.mock_recoleccion_data(self):
             votes = TrainDataHandler().get_votes()
+            parties = TrainDataHandler().get_parties()
             authors = TrainDataHandler().get_authors()
             projects = TrainDataHandler().get_law_projects()
+            legislators = TrainDataHandler().get_legislators()
             merged_df = TrainDataHandler().merge_data(votes, authors, projects)
         trainer = Trainer()
-        trainer.train(merged_df, votes, authors, projects)
+        trainer.train(merged_df, votes, parties, legislators)
         # We just want to check that the training does not fail
 
     def test_neural_network_cannot_train_with_incorrect_merged_data(self):
@@ -207,8 +209,7 @@ class FitDataHandlerTestCase(NeuralNetworkTestCase):
         self.train_neural_network()
         with mck.mock_recoleccion_data(self, use_existing_data=True):
             merged_df: pd.DataFrame = FitDataHandler().get_data()
-        column_to_drop = random.choice(merged_df.columns)
-        merged_df = merged_df.drop(column_to_drop, axis=1)
+        merged_df = merged_df.drop(merged_df.columns[1], axis=1)
         trainer = Trainer()
         with self.assertRaises(Exception) as context:
             trainer.fit(merged_df)
