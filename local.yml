@@ -6,7 +6,7 @@ volumes:
 
 services:
   django.red_neuronal:
-    hostname: red_neuronal
+    hostname: red-neuronal
     build:
       secrets:
         - ssh_private_key
