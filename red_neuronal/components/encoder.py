@@ -50,6 +50,7 @@ class Encoder:
     def _assert_no_new_data(self, data: pd.DataFrame):
         data_values = set(list(data[data.columns[0]]))
         loaded_categories = set(self.get_categories())
+        loaded_categories.add(None)
         if not data_values.issubset(loaded_categories):
             extra_values = data_values.difference(loaded_categories)
             if all([pd.isna(value) for value in extra_values]):
@@ -96,9 +97,10 @@ class PartiesEncoder(Encoder):
         values_list = [v[0] for d in data for k, v in d.items()]
         data_values = set([f"{KEY_WORD}_{value}" for value in values_list])
         loaded_features = set(self.get_feature_names())
+        loaded_features.add("party_authors_None")
         if not data_values.issubset(loaded_features):
             extra_values = data_values.difference(loaded_features)
             if all([pd.isna(value) for value in extra_values]):
                 # If all the extra values are NaN, we can ignore them
                 return
-            raise TransformingUnseenData()
+            raise TransformingUnseenData(extra_values=extra_values)

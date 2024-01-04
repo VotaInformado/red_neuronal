@@ -222,7 +222,7 @@ class PredictionDataHandler(DataHandler):
 
     @classmethod
     def get_prediction_df(cls, raw_data: dict):
-        raw_authors = raw_data["authors"]
+        raw_authors = raw_data["authors"] or [{"party": None}]
         raw_legislators = (
             raw_data.get("legislators")
             if raw_data.get("legislators") is not None
