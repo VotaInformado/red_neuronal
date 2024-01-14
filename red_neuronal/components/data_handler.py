@@ -185,12 +185,22 @@ class TrainDataHandler(DataHandler):
             filters = {"publication_date__gte": self.starting_date}
         elif endpoint == settings.AUTHORS_DATA_ENDPOINT:
             filters = {}  # filters here are not needed
+        elif endpoint == settings.LEGISLATORS_DATA_ENDPOINT:
+            filters = {}
+        elif endpoint == settings.PARTIES_DATA_ENDPOINT:
+            filters = {}
+        else:
+            raise Exception(f"Endpoint {endpoint} not supported")
         return filters
 
     def _get_data_from_source(self, endpoint: str) -> pd.DataFrame:
         filters = {}
         if self.starting_date:
-            filters = self._get_filters_for_endpoint(endpoint)
+            try:
+                filters = self._get_filters_for_endpoint(endpoint)
+            except Exception as e:
+                import pdb; pdb.set_trace()
+                pass
         return super()._get_data_from_source(endpoint, filters)
 
 

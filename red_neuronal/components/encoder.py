@@ -32,6 +32,7 @@ class Encoder:
         """For fitting, we load the encoder from disk. It should already have been saved"""
         try:
             self.encoder = joblib.load(self.ENCODING_FILE_DIR)
+            print(self.encoder.get_params())
         except FileNotFoundError:
             raise EncoderDataNotFound()
 

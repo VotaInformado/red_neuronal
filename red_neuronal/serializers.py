@@ -4,7 +4,6 @@ from red_neuronal.utils.dtos.endpoints_dto import EndpointsDTO
 
 # Expected columns: project, person, party
 class IndividualLegislatorSerializer(serializers.Serializer):
-    # project = serializers.CharField()
     person = serializers.IntegerField()
 
 
