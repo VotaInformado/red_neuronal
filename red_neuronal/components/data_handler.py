@@ -19,9 +19,7 @@ class DataHandler:
         ACCEPTABLE_RESPONSES = [status.HTTP_200_OK, status.HTTP_201_CREATED]
         response = self.session.get(url=endpoint, params=filters)
         if response.status_code not in ACCEPTABLE_RESPONSES:
-            raise Exception(
-                f"Error fetching data from {endpoint}. Response: {response}"
-            )
+            raise Exception(f"Error fetching data from {endpoint}. Response: {response}")
         return response
 
     def get_data(self):
@@ -73,9 +71,7 @@ class DataHandler:
         received_data = response_json["results"]
         total_results = response_json["count"]
         loops_needed = self._calculate_loops_needed(total_results)
-        logger.info(
-            f"{loops_needed} loops will be needed to fetch {total_results} results"
-        )
+        logger.info(f"{loops_needed} loops will be needed to fetch {total_results} results")
         if response_json["next"] is None:
             received_data = response_json["results"]
         else:
@@ -137,24 +133,16 @@ class DataHandler:
         law_projects["project"] = law_projects["project_id"].astype(int)
         votes_and_projects = pd.merge(votes, law_projects, on="project")
         votes_and_projects = votes_and_projects.drop(["date"], axis=1)
-        votes_and_projects = votes_and_projects.rename(
-            columns={"person": "voter_id", "party": "voter_party"}
-        )
+        votes_and_projects = votes_and_projects.rename(columns={"person": "voter_id", "party": "voter_party"})
         authors = self._flatten_party_authors(authors)
         votes_projects_and_authors = pd.merge(votes_and_projects, authors, on="project")
         # Es un poco complicado mergear para tener el nombre de legisladores, y no aporta nada, por ahora, queda así
         # TODO: ver si el encoder puede recibir ids en vez de nombres
-        final_df = votes_projects_and_authors.drop(
-            ["voter_party"], axis=1
-        )  # La red neuronal no lo está usando
+        final_df = votes_projects_and_authors.drop(["voter_party"], axis=1)  # La red neuronal no lo está usando
         return final_df
 
     def _flatten_party_authors(self, df: pd.DataFrame) -> pd.DataFrame:
-        df = (
-            df.groupby(["project"])["party"]
-            .apply(lambda x: ";".join(map(str, x)))
-            .reset_index()
-        )
+        df = df.groupby(["project"])["party"].apply(lambda x: ";".join(map(str, x))).reset_index()
         df.rename(columns={"party": "party_authors"}, inplace=True)
         df = df.drop_duplicates(subset=["project"])
         return df
@@ -196,11 +184,7 @@ class TrainDataHandler(DataHandler):
     def _get_data_from_source(self, endpoint: str) -> pd.DataFrame:
         filters = {}
         if self.starting_date:
-            try:
-                filters = self._get_filters_for_endpoint(endpoint)
-            except Exception as e:
-                import pdb; pdb.set_trace()
-                pass
+            filters = self._get_filters_for_endpoint(endpoint)
         return super()._get_data_from_source(endpoint, filters)
 
 
@@ -216,9 +200,9 @@ class FitDataHandler(DataHandler):
 class PredictionDataHandler(DataHandler):
     @classmethod
     def _flatten_party_authors(cls, df: pd.DataFrame) -> pd.DataFrame:
-        df = df.groupby(df.columns.difference(["party"]).tolist(), as_index=False)[
-            "party"
-        ].agg(lambda x: ";".join(map(str, x)))
+        df = df.groupby(df.columns.difference(["party"]).tolist(), as_index=False)["party"].agg(
+            lambda x: ";".join(map(str, x))
+        )
         df.rename(columns={"party": "party_authors"}, inplace=True)
         return df
 
@@ -234,14 +218,10 @@ class PredictionDataHandler(DataHandler):
     def get_prediction_df(cls, raw_data: dict):
         raw_authors = raw_data["authors"] or [{"party": None}]
         raw_legislators = (
-            raw_data.get("legislators")
-            if raw_data.get("legislators") is not None
-            else [raw_data.get("legislator")]
+            raw_data.get("legislators") if raw_data.get("legislators") is not None else [raw_data.get("legislator")]
         )
         raw_project = raw_data["project"]
-        raw_project = (
-            [raw_project] if isinstance(raw_project, OrderedDict) else raw_project
-        )
+        raw_project = [raw_project] if isinstance(raw_project, OrderedDict) else raw_project
         project_df = pd.DataFrame(raw_project)
         authors_df = pd.DataFrame(raw_authors)
         legislators_df = pd.DataFrame(raw_legislators)
