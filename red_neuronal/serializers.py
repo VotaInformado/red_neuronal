@@ -8,7 +8,7 @@ class IndividualLegislatorSerializer(serializers.Serializer):
 
 
 class ProjectSerializer(serializers.Serializer):
-    project = serializers.CharField()
+    project_id = serializers.CharField()
     project_title = serializers.CharField()
     project_text = serializers.CharField()
     project_year = serializers.IntegerField()

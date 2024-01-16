@@ -28,13 +28,20 @@ class Trainer(NeuralNetwork):
     ):
         """Trains the model from scratch, using the database saved in the class."""
         self.df: pd.DataFrame = self._normalize_years(df)
+        logger.info("Fitting encoders...")
         self._fit_encoders(votes, parties, legislators)
+        logger.info("Encoders fitted successfully")
         self._split_dataframe()
         self._generate_inputs()
+        logger.info("Generating embeddings...")
         self._create_embeddings()
+        logger.info("Creating neural network...")
         self._create_neuronal_network()
+        logger.info("Compiling model...")
         self._compile_model()
+        logger.info("Fitting model...")
         self._fit_model()
+        logger.info("Saving model...")
         self._save_model()
 
     def fit(self, df: pd.DataFrame):
@@ -51,6 +58,7 @@ class Trainer(NeuralNetwork):
         self._save_model()
 
     def _create_text_embeddings(self):
+        logger.info("Creating text embeddings...")
         law_and_text = self.df.drop_duplicates(subset=["project"])[
             ["project", "project_text"]
         ]
@@ -66,6 +74,7 @@ class Trainer(NeuralNetwork):
         self.texts_test = self._get_embeddings(self.df_test, text_and_embedding)
 
     def _create_title_embeddings(self):
+        logger.info("Creating title embeddings...")
         law_and_text = self.df.drop_duplicates(subset=["project"])[
             ["project", "project_title"]
         ]
@@ -232,6 +241,8 @@ class Trainer(NeuralNetwork):
         )
 
     def _fit_model(self):
+        batch_size = 32
+        logger.info(f"Fitting model with batchsize={batch_size}")
         history: History = self.model.fit(
             {
                 "authors": self.authors_train,
@@ -241,8 +252,8 @@ class Trainer(NeuralNetwork):
                 "law_titles": self.titles_train,
             },
             {"softmax_vote": self.y_train},
-            epochs=4,
-            batch_size=32,
+            epochs=10,
+            batch_size=batch_size,
             validation_data=(
                 {
                     "authors": self.authors_val,
