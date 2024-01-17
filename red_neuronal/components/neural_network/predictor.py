@@ -31,23 +31,27 @@ class Predictor(NeuralNetwork):
         self.years = self.df["project_year_cont"]
 
     def _create_text_embeddings_for_prediction(self):
-        law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_text"]]
+        law_and_text = self.df.drop_duplicates(subset=["project"])[
+            ["project", "project_text"]
+        ]
         law_and_text["project_text"] = law_and_text["project_text"].map(
             lambda x: self.embedder.create_law_text_embedding(x)
         )
         text_and_embedding = pd.DataFrame(
-            data=law_and_text["project_text"].tolist(), index=law_and_text["project_id"]
+            data=law_and_text["project_text"].tolist(), index=law_and_text["project"]
         ).reset_index()
 
         self.texts = self._get_embeddings(self.df, text_and_embedding)
 
     def _create_title_embeddings_for_prediction(self):
-        law_and_text = self.df.drop_duplicates(subset=["project_id"])[["project_id", "project_title"]]
+        law_and_text = self.df.drop_duplicates(subset=["project"])[
+            ["project", "project_title"]
+        ]
         law_and_text["project_title"] = law_and_text["project_title"].map(
             lambda x: self.embedder.create_law_text_embedding(x)
         )
         title_and_embedding = pd.DataFrame(
-            data=law_and_text["project_title"].tolist(), index=law_and_text["project_id"]
+            data=law_and_text["project_title"].tolist(), index=law_and_text["project"]
         ).reset_index()
 
         self.titles = self._get_embeddings(self.df, title_and_embedding)

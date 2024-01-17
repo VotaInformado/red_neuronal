@@ -24,8 +24,6 @@ class UniversalEmbedding:
 
     def create_law_text_embedding(self, texto):
         # length = len(texto)
-        # if length > 1000000:
-        #     import pdb; pdb.set_trace()
         # logger.info(f"Creating law text embedding of text of lenght: {length}")
         oraciones = str(texto).split(".")
         embeddings = self.encode_multiple(oraciones)

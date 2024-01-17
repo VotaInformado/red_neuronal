@@ -229,5 +229,5 @@ class PredictionDataHandler(DataHandler):
         # we remove the one row with party nan
         project_with_authors = cls._flatten_party_authors(project_with_authors)
         merged_df = cls.replicate_columns(legislators_df, project_with_authors)
-        merged_df = merged_df.rename(columns={"person": "voter_id"})
+        merged_df = merged_df.rename(columns={"person": "voter_id", "project_id": "project"})
         return merged_df
