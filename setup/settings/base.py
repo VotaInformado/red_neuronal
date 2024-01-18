@@ -27,8 +27,7 @@ SECRET_KEY = "django-insecure-l1a2#wxu+mngb7f!$f06^30jl^!t5(!t8^vo15=8cqqr-e&&t4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
-
+ALLOWED_HOSTS = ["red-neuronal", "127.0.0.1", "localhost"]
 
 # Application definition
 
@@ -39,6 +38,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "drf_yasg",
     "red_neuronal.apps.RedNeuronalConfig",
 ]
 
@@ -79,7 +79,7 @@ WSGI_APPLICATION = "setup.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "NAME": f"{BASE_DIR}/db.sqlite3",
     }
 }
 
@@ -141,4 +141,38 @@ VOTES_DATA_ENDPOINT = config.get("VOTES_DATA_ENDPOINT", "")
 LEGISLATORS_DATA_ENDPOINT = config.get("LEGISLATORS_DATA_ENDPOINT", "")
 PROJECTS_DATA_ENDPOINT = config.get("PROJECTS_DATA_ENDPOINT", "")
 AUTHORS_DATA_ENDPOINT = config.get("AUTHORS_DATA_ENDPOINT", "")
+PARTIES_DATA_ENDPOINT = config.get("PARTIES_DATA_ENDPOINT", "")
 DEFAULT_PAGE_SIZE = 1000
+
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {
+        "colored_formatter": {
+            "()": "colorlog.ColoredFormatter",
+            "format": "\n%(log_color)s%(levelname)-8s%(white)s%(message)s",
+            "log_colors": {
+                "DEBUG": "bold_black",
+                "INFO": "green",
+                "WARNING": "yellow",
+                "ERROR": "red",
+                "CRITICAL": "bold_red",
+            },
+        },
+    },
+    "handlers": {
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "colored_formatter",
+        },
+    },
+    "loggers": {
+        "red_neuronal": {
+            "level": "DEBUG",
+            "handlers": ["console"],
+            "propagate": False,
+        },
+    },
+}

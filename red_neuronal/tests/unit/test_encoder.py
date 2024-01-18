@@ -9,7 +9,7 @@ from django.conf import settings
 # Project
 from red_neuronal.utils.enums import VoteChoices
 from red_neuronal.components.encoder import VotesEncoder
-from red_neuronal.components.neural_network import NeuralNetwork
+from red_neuronal.components.neural_network.neural_network import NeuralNetwork
 from red_neuronal.tests.test_helpers.faker import create_fake_df
 from red_neuronal.utils.exceptions.exceptions import TransformingUnseenData, UntrainedNeuralNetwork
 

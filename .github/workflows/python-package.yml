@@ -28,5 +28,7 @@ jobs:
         pip install -r requirements.txt
 
     - name: Run Django tests
+      env:
+        DJANGO_SETTINGS_MODULE: "setup.settings.test"
       run: |
         python manage.py test

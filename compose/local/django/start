@@ -1,4 +1,5 @@
 #!/bin/sh
 
 python manage.py migrate
-gunicorn --bind 0.0.0.0:8000 setup.wsgi:application
+python manage.py runserver 0.0.0.0:8000
+# gunicorn --bind 0.0.0.0:8000  --timeout 0 --worker-class gevent setup.wsgi:application

@@ -7,7 +7,7 @@ from django.conf import settings
 # Project
 from red_neuronal.tests.test_helpers.test_case import CustomTestCase
 import red_neuronal.tests.test_helpers.mocks as mck
-from red_neuronal.components.neural_network import NeuralNetwork
+from red_neuronal.components.neural_network.neural_network import NeuralNetwork
 from red_neuronal.components.data_handler import DataHandler
 
 

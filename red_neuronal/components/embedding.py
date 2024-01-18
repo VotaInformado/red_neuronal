@@ -1,6 +1,7 @@
 import tensorflow_hub as hub
 import tensorflow_text
 import numpy as np
+from red_neuronal.utils.logger import logger
 
 
 class UniversalEmbedding:
@@ -8,7 +9,7 @@ class UniversalEmbedding:
     Creates an instance of a Universal Encoder.
     """
 
-    model_url = "https://tfhub.dev/google/universal-sentence-encoder-multilingual/3"
+    model_url = "https://www.kaggle.com/models/google/universal-sentence-encoder/frameworks/TensorFlow2/variations/multilingual/versions/2"
 
     def __init__(self):
         self.model = hub.load(self.model_url)
@@ -22,6 +23,8 @@ class UniversalEmbedding:
         return encodings
 
     def create_law_text_embedding(self, texto):
+        # length = len(texto)
+        # logger.info(f"Creating law text embedding of text of lenght: {length}")
         oraciones = str(texto).split(".")
         embeddings = self.encode_multiple(oraciones)
         reduced = np.mean(embeddings, axis=0)

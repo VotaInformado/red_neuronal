@@ -38,6 +38,29 @@ def create_fake_df(df_columns: dict, n=100, as_dict: bool = True, **kwargs):
 
 
 def create_fake_value(column_type: str, n: int, **kwargs):
+    if column_type == "parties":
+        parties_list = [
+            "1",  # we mock string ids since we receive string ids from recoleccion
+            "2",
+            "3",
+            "4",
+            "5",
+            "6",
+            "7",
+            "8",
+            "9",
+            "10",
+            "11",
+            "12",
+            "13",
+            "14",
+            "15",
+            "16",
+            "17",
+            "18",
+        ]
+        chosen_parties = random.choices(parties_list, k=3)
+        return ";".join(chosen_parties)
     if column_type == "str":
         return fake.name()
     if column_type == "exp":
@@ -60,7 +83,13 @@ def create_fake_value(column_type: str, n: int, **kwargs):
         if kwargs.get("dates_as_str", True):
             return fake.date_of_birth(minimum_age=18, maximum_age=80)
         return fake.date_of_birth(minimum_age=18, maximum_age=80).strftime("%Y-%m-%d")
-    elif column_type == "int":
+    elif column_type == "int" or column_type == int:
         return fake.random_int(min=1, max=n)
+    elif column_type == "unique-int":
+        return fake.unique.random_int(min=1, max=n)
     else:
         raise ValueError(f"Column type {column_type} not supported")
+
+
+def reset_fake_data():
+    fake.unique.clear()
