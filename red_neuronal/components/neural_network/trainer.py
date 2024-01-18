@@ -96,8 +96,8 @@ class Trainer(NeuralNetwork):
     def _split_dataframe(self):
         df = self.df
         laws = df["project"].unique()
-        laws_train, laws_test = train_test_split(laws, train_size=0.7)
-        laws_val, laws_test = train_test_split(laws_test, train_size=0.66)
+        laws_train, laws_test = train_test_split(laws, train_size=0.95)
+        laws_val, laws_test = train_test_split(laws_test, train_size=0.99)
 
         self.df_train = df.loc[df["project"].isin(laws_train)]
         self.df_val = df.loc[df["project"].isin(laws_val)]
@@ -252,7 +252,7 @@ class Trainer(NeuralNetwork):
                 "law_titles": self.titles_train,
             },
             {"softmax_vote": self.y_train},
-            epochs=10,
+            epochs=4,
             batch_size=batch_size,
             validation_data=(
                 {
@@ -268,10 +268,5 @@ class Trainer(NeuralNetwork):
         self._save_history(history)
 
     def _save_model(self):
-        model_json = self.model.to_json()
         os.makedirs(os.path.dirname(self.MODEL_FILE_SAVING_DIR), exist_ok=True)
-        with open(self.MODEL_FILE_SAVING_DIR, "w") as json_file:
-            json_file.write(model_json)
-        os.makedirs(os.path.dirname(self.WEIGHTS_SAVING_DIR), exist_ok=True)
-        self.model.save_weights(self.WEIGHTS_SAVING_DIR)
-        logger.info("Model saved successfully")
+        self.model.save(self.MODEL_KERAS_SAVING_DIR)

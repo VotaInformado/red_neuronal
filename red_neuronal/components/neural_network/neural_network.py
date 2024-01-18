@@ -13,11 +13,13 @@ from keras.callbacks import History
 
 # Other
 import pandas as pd
+from datetime import datetime
 from red_neuronal.components.encoder import (
     PartiesEncoder,
     LegislatorsEncoder,
     VotesEncoder,
 )
+from red_neuronal.utils.logger import logger
 
 # Project
 from red_neuronal.components.embedding import UniversalEmbedding
@@ -35,9 +37,7 @@ class NeuralNetwork:
     class Meta:
         abstract = True
 
-    MODEL_FILE_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.json"
-    WEIGHTS_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.h5"
-    HISTORY_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/history.json"
+    MODEL_KERAS_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/model.keras"
     REPORT_SAVING_DIR = f"{settings.MODEL_SAVING_DIR}/report.txt"
 
     def __init__(self):
@@ -72,14 +72,24 @@ class NeuralNetwork:
         parties.rename(columns={"id": "party_authors"}, inplace=True)
         authors_dict = (
             parties["party_authors"]
-            .apply(lambda x: {"party_authors": str(x).split(";") if x else []})
+            .apply(
+                lambda x: {"party_authors": list(set(str(x).split(";") if x else []))}
+            )
             .tolist()
         )
         self.parties_encoder.fit(authors_dict)
 
     def _normalize_years(self, df: pd.DataFrame):
+        """
+        Esto es raro porque si predecis solo para 2023, no tiene sentido normalizar
+        Tampoco sabe si un determinado año como cae en el contínuo de los datos de entrenamiento
+        """
+        df["project_year"] = df["project_year"].astype(int)
         max_year = df["project_year"].max()
         min_year = df["project_year"].min()
+        if max_year == min_year:
+            min_year = 1983
+            max_year = datetime.now().year
         df["project_year_cont"] = (df["project_year"] - min_year) / (
             max_year - min_year
         )
@@ -87,18 +97,14 @@ class NeuralNetwork:
 
     def _load_model(self):
         if self.model is not None:
+            logger.info("The model is already loaded.")
             # The model is still loaded in memory, no need to load it again
             return
         try:
-            with open(self.MODEL_FILE_SAVING_DIR, "r") as json_file:
-                loaded_model_json = json_file.read()
-
-            # Load weights into new model
-            loaded_model: keras.Model = model_from_json(loaded_model_json)
-            loaded_model.load_weights(self.WEIGHTS_SAVING_DIR)
-            self.model = loaded_model
-        except FileNotFoundError:
+            self.model = keras.models.load_model(self.MODEL_KERAS_SAVING_DIR)
+        except OSError:
             raise UntrainedNeuralNetwork()
+
 
     def _save_history(self, history: History):
         pass  # Mongo DB?
@@ -142,9 +148,11 @@ class NeuralNetwork:
             .tolist()
         )
         transformed = self.parties_encoder.transform(authors_dict)
-        return pd.DataFrame(
+        ret_df = pd.DataFrame(
             np.array(transformed), columns=self.parties_encoder.get_feature_names()
         )
+        ret_df = ret_df.applymap(lambda x: float(bool(x)))
+        return ret_df
 
     def _get_embeddings(self, df: pd.DataFrame, embeddings: pd.DataFrame):
         embeddings = pd.DataFrame.merge(
@@ -152,9 +160,3 @@ class NeuralNetwork:
         )
         embeddings.drop(columns=["project"], inplace=True)
         return embeddings
-
-    # def save_results(self):
-    #     self.model.save("/kaggle/working/model")
-    #     self.model.save("/kaggle/working/model-tf", save_format="tf")
-    #     self.model.save("/kaggle/working/model-keras", save_format="keras")
-    #     self.model.save("/kaggle/working/model-keras2/model.keras")

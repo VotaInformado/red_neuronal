@@ -1,12 +1,6 @@
 import numpy as np
-
-# Sklearn
-
 # Other
 import pandas as pd
-import matplotlib.pyplot as plt
-import collections
-
 # Project
 from red_neuronal.components.neural_network.neural_network import NeuralNetwork
 
@@ -21,7 +15,6 @@ class Predictor(NeuralNetwork):
         self._create_embeddings_for_prediction()
         predictions = self._predict()
         return predictions
-        # self._evaluate()
 
     def _generate_inputs_for_prediction(self):
         self.legislator_ids = self.df["voter_id"]
@@ -75,11 +68,6 @@ class Predictor(NeuralNetwork):
         max_probs_index = np.argmax(self.prediction, axis=1)
         vote_predictions = [POSSIBLE_VOTES[i] for i in max_probs_index]
 
-        freq = collections.Counter(vote_predictions)
-        plt.figure(figsize=(10, 6))
-        plt.bar(freq.keys(), freq.values())
-        plt.title("Cantidad de votos predecidos por categoría")
-        plt.show()
         result = []
         for legislator, vote_predictions in zip(self.legislator_ids, vote_predictions):
             result.append({"legislator": legislator, "vote": vote_predictions})

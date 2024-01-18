@@ -50,6 +50,7 @@ class PredictionViewSet(viewsets.GenericViewSet):
         serializer = ProjectPredictionRequest(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
+        # import pdb; pdb.set_trace()
         df: pd.DataFrame = PredictionDataHandler.get_prediction_df(data)
         predictor = Predictor()
         prediction = predictor.predict(df)

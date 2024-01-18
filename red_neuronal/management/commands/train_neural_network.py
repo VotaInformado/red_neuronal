@@ -27,9 +27,6 @@ class Command(BaseCommand):
         projects = data_handler.get_law_projects()
         parties = data_handler.get_parties()
         df: pd.DataFrame = data_handler.merge_data(votes, authors, projects)
-        #vote count
-        votes_df = df.groupby('vote').size().reset_index(name='count')
-        print(votes_df)
         trainer = Trainer()
         logger.info("The DataFrame has been created. Training neural network...")
         trainer.train(df, votes, parties, legislators)
