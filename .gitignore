@@ -164,3 +164,5 @@ my_first_model.png
 *.pkl
 data_handler/last_fetched_date.txt
 
+
+red_neuronal/persistence/model/

@@ -268,5 +268,5 @@ class Trainer(NeuralNetwork):
         self._save_history(history)
 
     def _save_model(self):
-        os.makedirs(os.path.dirname(self.MODEL_FILE_SAVING_DIR), exist_ok=True)
+        os.makedirs(os.path.dirname(self.MODEL_KERAS_SAVING_DIR), exist_ok=True)
         self.model.save(self.MODEL_KERAS_SAVING_DIR)
