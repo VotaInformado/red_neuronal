@@ -1,5 +1,7 @@
 # VotaInformado Neural Network
 Neural Network API for the [Vota Informado](https://votainformado.com.ar) project.
+
+This Neural Network tries to predict the vote of a legislator on a particular project based on it's voting history.
  
 
 <div style="text-align: center;">
