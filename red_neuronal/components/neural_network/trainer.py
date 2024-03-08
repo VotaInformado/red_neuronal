@@ -97,8 +97,11 @@ class Trainer(NeuralNetwork):
         df = self.df
         laws = df["project"].unique()
         laws_train, laws_test = train_test_split(laws, train_size=0.95)
-        laws_val, laws_test = train_test_split(laws_test, train_size=0.99)
-
+        try:
+            laws_val, laws_test = train_test_split(laws_test, train_size=0.99)
+        except ValueError:
+            # If validation would be empty move last train law to validation
+            laws_val, laws_train = [laws_train[-1]], laws_train[:-1]
         self.df_train = df.loc[df["project"].isin(laws_train)]
         self.df_val = df.loc[df["project"].isin(laws_val)]
         self.df_test = df.loc[df["project"].isin(laws_test)]
@@ -236,7 +239,7 @@ class Trainer(NeuralNetwork):
             loss={
                 "softmax_vote": keras.losses.CategoricalCrossentropy(),
             },
-            metrics=["accuracy"]
+            metrics=["accuracy"],
             # loss_weights={"softmax_vote": 1.0},
         )
 

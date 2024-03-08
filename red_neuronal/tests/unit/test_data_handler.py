@@ -334,6 +334,7 @@ class PredictionDataHandlerTestCase(NeuralNetworkTestCase):
             "legislators": legislators_data,
             "project": project_data,
         }
+
         merged_df: pd.DataFrame = PredictionDataHandler.get_prediction_df(
             prediction_data
         )

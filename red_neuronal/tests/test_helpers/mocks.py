@@ -178,7 +178,6 @@ def mock_new_votes_data(test_case: TestCase, total_results=None):
                 # Funciona si VOTES_PER_PROJECT * total_projects > len(person_ids)
                 person_id = test_case.person_ids[person_pointer]
                 person_pointer = (person_pointer + 1) % len(test_case.person_ids)
-                print("Person pointer at ", person_pointer)
             else:
                 person_id = random.choice(test_case.person_ids)
             vote = random.choice(VoteChoices.values)

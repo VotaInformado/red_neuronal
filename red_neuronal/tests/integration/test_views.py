@@ -36,7 +36,7 @@ class PredictionTestCase(CustomAPITestCase):
         return df.to_dict(orient="records")
 
     def mock_project_data(self, use_existing=False):
-        columns = {"project": int, "project_year": "year", "project_title": "short_text", "project_text": "text"}
+        columns = {"project_id": int, "project_year": "year", "project_title": "short_text", "project_text": "text"}
         df = create_fake_df(columns, n=1, as_dict=False)
         if use_existing:
             df["project"] = self.project_ids[0]

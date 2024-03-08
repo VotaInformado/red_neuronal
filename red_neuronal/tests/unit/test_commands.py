@@ -21,7 +21,7 @@ class TrainingCommandTestcase(CustomTestCase):
         mck.create_project_ids(self)
 
     def files_created(self) -> bool:
-        dirs = [NeuralNetwork.MODEL_FILE_SAVING_DIR, NeuralNetwork.WEIGHTS_SAVING_DIR]
+        dirs = [NeuralNetwork.MODEL_KERAS_SAVING_DIR]
         for dir in dirs:
             if not os.path.exists(dir):
                 return False
