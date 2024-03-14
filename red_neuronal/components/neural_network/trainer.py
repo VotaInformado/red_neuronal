@@ -163,7 +163,9 @@ class Trainer(NeuralNetwork):
             name="law_embedding",
         )(self.law_texts_input)
         self.legislators_features = layers.Embedding(
-            self.legislators_input_dim, 10, name="legislators_embedding"
+            self.legislators_input_dim,
+            int(self.legislators_input_dim / 10),
+            name="legislators_embedding",
         )(self.legislators_input)
         self.authors_features = layers.Embedding(
             self.authors_input_dim,
